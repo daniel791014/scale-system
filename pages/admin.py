@@ -692,15 +692,78 @@ def render_schedule_management():
                             st.error(f"❌ 處理工單時發生錯誤: {e}")
                             st.rerun()
                         
-                        # 準備要顯示的工單資訊
+                        # 準備要顯示的工單資訊（移除備註，加入數量）
                         work_order_info_list = []
                         for idx in valid_indices:
                             try:
                                 wo_row = st.session_state.work_orders_db.loc[idx]
                                 wo_id = wo_row["工單號碼"]
-                                wo_display = wo_row.get("顯示內容", wo_id)
-                                work_order_info_list.append(f"工單號：{wo_id} - {wo_display}")
-                            except (KeyError, IndexError):
+                                
+                                # 重新生成工單資訊，移除備註，加入數量
+                                # 先取得產品資訊
+                                product_id = wo_row.get("產品ID", "")
+                                wo_display = wo_row.get("顯示內容", "")
+                                
+                                # 如果有產品ID，從products_db取得詳細資訊
+                                if product_id and not st.session_state.products_db.empty:
+                                    product_match = st.session_state.products_db[st.session_state.products_db["產品ID"] == product_id]
+                                    if not product_match.empty:
+                                        product_row = product_match.iloc[0]
+                                        # 檢查是否有客戶名
+                                        if "客戶名" in product_row and pd.notna(product_row["客戶名"]):
+                                            # 格式：[客戶名] | 溫度等級 | 品種 | 密度 | 規格 | 準重kg | 數量
+                                            client_name = product_row["客戶名"]
+                                            temp_level = product_row.get("溫度等級", "")
+                                            variety = product_row.get("品種", "")
+                                            
+                                            # 密度
+                                            density_str = ""
+                                            density_val = product_row.get("密度", "")
+                                            if pd.notna(density_val) and str(density_val).strip() != "":
+                                                try:
+                                                    density_str = f"{float(density_val):.1f} | "
+                                                except (ValueError, TypeError):
+                                                    density_str = f"{density_val} | "
+                                            
+                                            # 規格
+                                            spec = f"{dm.format_size(product_row.get('長', 0))}x{dm.format_size(product_row.get('寬', 0))}x{dm.format_size(product_row.get('高', 0))}"
+                                            
+                                            # 準重
+                                            weight = wo_row.get("準重", product_row.get("準重", 0))
+                                            weight_str = f"{float(weight):.3f}kg" if pd.notna(weight) else "0kg"
+                                            
+                                            # 數量
+                                            qty = wo_row.get("預計數量", 0)
+                                            qty_str = f"數:{int(qty)}" if pd.notna(qty) else "數:0"
+                                            
+                                            wo_info = f"[{client_name}] | {temp_level} | {variety} | {density_str}{spec} | {weight_str} | {qty_str}"
+                                        else:
+                                            # 沒有客戶名，使用顯示內容但移除備註，加入數量
+                                            # 移除備註部分（通常備註在最後，用 | 分隔）
+                                            parts = wo_display.split(" | ")
+                                            # 過濾掉包含「備註」的部分
+                                            filtered_parts = [p for p in parts if "備註" not in p]
+                                            # 加入數量
+                                            qty = wo_row.get("預計數量", 0)
+                                            qty_str = f"數:{int(qty)}" if pd.notna(qty) else "數:0"
+                                            wo_info = " | ".join(filtered_parts) + f" | {qty_str}" if filtered_parts else f"{wo_display} | {qty_str}"
+                                    else:
+                                        # 找不到產品，使用顯示內容但移除備註，加入數量
+                                        parts = wo_display.split(" | ")
+                                        filtered_parts = [p for p in parts if "備註" not in p]
+                                        qty = wo_row.get("預計數量", 0)
+                                        qty_str = f"數:{int(qty)}" if pd.notna(qty) else "數:0"
+                                        wo_info = " | ".join(filtered_parts) + f" | {qty_str}" if filtered_parts else f"{wo_display} | {qty_str}"
+                                else:
+                                    # 沒有產品ID，使用顯示內容但移除備註，加入數量
+                                    parts = wo_display.split(" | ")
+                                    filtered_parts = [p for p in parts if "備註" not in p]
+                                    qty = wo_row.get("預計數量", 0)
+                                    qty_str = f"數:{int(qty)}" if pd.notna(qty) else "數:0"
+                                    wo_info = " | ".join(filtered_parts) + f" | {qty_str}" if filtered_parts else f"{wo_display} | {qty_str}"
+                                
+                                work_order_info_list.append(wo_info)
+                            except (KeyError, IndexError) as e:
                                 continue
                         
                         if not work_order_info_list:

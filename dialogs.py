@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import time
+import re
 import config
 import data_manager as dm
 from data_loader import save_data
@@ -666,29 +667,34 @@ def show_delete_work_orders_confirm(target_line, work_order_ids, work_order_info
         st.session_state[dialog_closed_key] = False
         return
     
-    st.write(f"⚠️ **您確定要刪除以下工單嗎？**")
-    st.markdown(f"**產線：{target_line}**")
-    st.write("")
+    st.markdown(f"""
+    <div style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">
+        ⚠️ 您確定要刪除以下工單嗎？
+    </div>
+    """, unsafe_allow_html=True)
     
-    # 顯示將要刪除的工單列表
+    # 顯示將要刪除的工單列表，使用與結束工單相同的藍色背景框樣式
     if work_order_info_list:
-        st.markdown("**將刪除的工單：**")
-        for info in work_order_info_list:
-            st.write(f"- {info}")
-    
-    st.warning("⚠️ **此動作無法復原！**")
-    st.write("")
+        # 將所有工單資訊合併成一個字串，用換行分隔
+        work_order_display = "<br>".join([f"• {info}" for info in work_order_info_list])
+        st.markdown(f"""
+        <div style="background-color: #f0f2f6; padding: 15px; border-radius: 8px; border-left: 4px solid #1f77b4; margin: 10px 0;">
+            <p style="font-size: 18px; font-weight: bold; color: #1f77b4; margin: 0;">
+                {work_order_display}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     col_cancel, col_confirm = st.columns([1, 2])
     
     with col_cancel:
-        if st.button("❌ 取消 (Cancel)", type="secondary", width='stretch'):
+        if st.button("取消\n(Cancel)", type="secondary", width='stretch'):
             st.session_state[dialog_closed_key] = True
             st.session_state[dialog_key] = False
             st.rerun()
     
     with col_confirm:
-        if st.button("✅ 確定刪除", type="primary", width='stretch'):
+        if st.button("確定\n(Confirm)", type="primary", width='stretch'):
             try:
                 # 執行刪除邏輯
                 if 'work_orders_db' not in st.session_state:
@@ -732,6 +738,97 @@ def show_delete_work_orders_confirm(target_line, work_order_ids, work_order_info
                 st.error(f"❌ 刪除失敗：{str(e)}")
                 import traceback
                 st.exception(e)
+    
+    # 隱藏對話框右上角的關閉按鈕（X）
+    st.markdown("""
+    <style>
+    /* 隱藏 dialog 右上角的關閉按鈕 */
+    div[data-testid="stDialog"] button[aria-label*="Close"],
+    div[data-testid="stDialog"] button[aria-label*="關閉"],
+    div[data-testid="stDialog"] button[title*="Close"],
+    div[data-testid="stDialog"] button[title*="關閉"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    
+    /* 隱藏 header 中的關閉按鈕 */
+    div[data-testid="stDialog"] header button:last-child,
+    div[data-testid="stDialog"] header button[aria-label*="close" i] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    </style>
+    <script>
+    (function() {
+        function hideCloseButton() {
+            try {
+                var dialog = document.querySelector('[data-testid="stDialog"]');
+                if (!dialog) return;
+                
+                // 查找所有可能的關閉按鈕
+                var closeButtons = dialog.querySelectorAll('button');
+                for (var i = 0; i < closeButtons.length; i++) {
+                    var btn = closeButtons[i];
+                    var ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                    var title = (btn.getAttribute('title') || '').toLowerCase();
+                    var btnText = (btn.innerText || btn.textContent || '').trim();
+                    
+                    // 檢查是否為關閉按鈕（在 header 中且標記為關閉）
+                    var inHeader = false;
+                    var parent = btn.parentElement;
+                    for (var j = 0; j < 5; j++) {
+                        if (!parent) break;
+                        if (parent.tagName === 'HEADER' || 
+                            (parent.className && parent.className.toLowerCase().includes('header'))) {
+                            inHeader = true;
+                            break;
+                        }
+                        parent = parent.parentElement;
+                    }
+                    
+                    var isCloseButton = inHeader && (
+                        ariaLabel.includes('close') || ariaLabel.includes('關閉') ||
+                        title.includes('close') || title.includes('關閉') ||
+                        btnText === '×' || btnText === '✕' || btnText === 'X' || btnText === ''
+                    );
+                    
+                    // 只隱藏關閉按鈕，保留我們的取消和確認按鈕
+                    var isOurButton = btnText.includes('取消') || btnText.includes('Cancel') ||
+                                     btnText.includes('確定') || btnText.includes('Confirm') ||
+                                     btnText.includes('刪除');
+                    
+                    if (isCloseButton && !isOurButton) {
+                        btn.style.setProperty('display', 'none', 'important');
+                        btn.style.setProperty('visibility', 'hidden', 'important');
+                        btn.style.setProperty('opacity', '0', 'important');
+                        btn.style.setProperty('pointer-events', 'none', 'important');
+                    }
+                }
+            } catch(e) {
+                console.error('Error hiding close button:', e);
+            }
+        }
+        
+        // 立即執行多次
+        hideCloseButton();
+        setTimeout(hideCloseButton, 50);
+        setTimeout(hideCloseButton, 100);
+        setTimeout(hideCloseButton, 200);
+        setTimeout(hideCloseButton, 500);
+        setTimeout(hideCloseButton, 1000);
+        
+        // 監聽 DOM 變化
+        var observer = new MutationObserver(function() {
+            hideCloseButton();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        setTimeout(function() {
+            observer.disconnect();
+        }, 10000);
+    })();
+    </script>
+    """, unsafe_allow_html=True)
 
 
 @st.dialog("🏁 確認結束工單 (Confirm Finish Work Order)")
