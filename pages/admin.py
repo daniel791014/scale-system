@@ -174,6 +174,28 @@ def render_schedule_management():
             st.write("在表格最右側輸入「📝 排程數量」：")
             edited_selection = st.data_editor(view_df[["客戶名", "溫度", "品種", "📏 規格", "下限", "準重", "上限", "備註1", "備註2", "備註3", "📝 排程數量"]], column_config={"📝 排程數量": st.column_config.NumberColumn(min_value=0, step=1, required=True, format="%d"), "客戶名": st.column_config.TextColumn(disabled=True), "溫度": st.column_config.TextColumn(disabled=True), "品種": st.column_config.TextColumn(disabled=True), "📏 規格": st.column_config.TextColumn(disabled=True), "下限": st.column_config.NumberColumn(disabled=True, format="%.1f"), "準重": st.column_config.NumberColumn(disabled=True, format="%.3f"), "上限": st.column_config.NumberColumn(disabled=True, format="%.1f"), "備註1": st.column_config.TextColumn(disabled=True), "備註2": st.column_config.TextColumn(disabled=True), "備註3": st.column_config.TextColumn(disabled=True)}, width='stretch')
             st.write("")
+            # 確保按鈕有足夠高度和視覺效果（通過 JavaScript 處理，這裡的 CSS 僅作為備用）
+            st.markdown("""
+            <style>
+            button.action-button-primary {
+                min-height: 4rem !important;
+                height: auto !important;
+                padding: 1rem 2rem !important;
+                font-size: 1.2rem !important;
+                font-weight: 700 !important;
+                line-height: 1.5 !important;
+                box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3), 0 2px 4px rgba(231, 76, 60, 0.2) !important;
+                border: 2px solid #c0392b !important;
+                border-radius: 8px !important;
+                transition: all 0.3s ease !important;
+            }
+            button.action-button-primary:hover {
+                box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4), 0 4px 6px rgba(231, 76, 60, 0.3) !important;
+                transform: translateY(-2px) !important;
+                background-color: #ec7063 !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
             if st.button(f"⬇️ 確認加入至 {target_line} 的排程", type="primary", width='stretch'):
                 items_index = edited_selection[edited_selection["📝 排程數量"] > 0].index
                 if not items_index.empty:
@@ -352,16 +374,21 @@ def render_schedule_management():
                     vertical-align: middle !important;
                 }
                 
-                /* 按鈕本身樣式 - 只針對通過 JavaScript 添加類別的按鈕 */
+                /* 按鈕本身樣式 - 增強視覺效果，讓操作者知道可以點選 */
+                /* 針對 secondary 類型的箭頭按鈕 - 最高優先級 */
                 button.sort-arrow-button,
                 button.sort-arrow-button[kind="secondary"],
-                .stButton button.sort-arrow-button {
-                    width: 2rem !important;
-                    min-width: 2rem !important;
-                    max-width: 2rem !important;
-                    height: 1.8rem !important;
-                    min-height: 1.8rem !important;
-                    max-height: 1.8rem !important;
+                .stButton button.sort-arrow-button,
+                button[kind="secondary"][data-testid*="move_up_"],
+                button[kind="secondary"][data-testid*="move_down_"],
+                button[data-testid*="move_up_"],
+                button[data-testid*="move_down_"] {
+                    width: 2.5rem !important;
+                    min-width: 2.5rem !important;
+                    max-width: 2.5rem !important;
+                    height: 2.2rem !important;
+                    min-height: 2.2rem !important;
+                    max-height: 2.2rem !important;
                     padding: 0 !important;
                     margin: 0 !important;
                     display: flex !important;
@@ -370,21 +397,51 @@ def render_schedule_management():
                     flex-shrink: 0 !important;
                     text-align: center !important;
                     line-height: 1 !important;
-                    background-color: #e3f2fd !important;
-                    border: 1px solid #90caf9 !important;
-                    color: #333 !important;
+                    background-color: #4fc3f7 !important;
+                    background: #4fc3f7 !important;
+                    border: 2px solid #0288d1 !important;
+                    border-color: #0288d1 !important;
+                    color: #ffffff !important;
+                    font-weight: 900 !important;
+                    font-size: 1.4rem !important;
+                    box-shadow: 0 2px 4px rgba(2, 136, 209, 0.3), 0 1px 2px rgba(2, 136, 209, 0.2) !important;
+                    border-radius: 6px !important;
+                    transition: all 0.2s ease !important;
+                    cursor: pointer !important;
+                }
+                
+                /* 上下箭頭按鈕 hover 效果 */
+                button.sort-arrow-button:hover:not(:disabled),
+                button[kind="secondary"][data-testid*="move_up_"]:hover:not(:disabled),
+                button[kind="secondary"][data-testid*="move_down_"]:hover:not(:disabled),
+                button[data-testid*="move_up_"]:hover:not(:disabled),
+                button[data-testid*="move_down_"]:hover:not(:disabled) {
+                    background-color: #29b6f6 !important;
+                    background: #29b6f6 !important;
+                    border-color: #0277bd !important;
+                    box-shadow: 0 4px 8px rgba(2, 136, 209, 0.4), 0 2px 4px rgba(2, 136, 209, 0.3) !important;
+                    transform: translateY(-1px) !important;
                 }
                 
                 /* 按鈕 hover 狀態 - 更深的藍色 */
-                button.sort-arrow-button:hover:not(:disabled) {
-                    background-color: #bbdefb !important;
-                    border-color: #64b5f6 !important;
+                button.sort-arrow-button:hover:not(:disabled),
+                button[kind="secondary"][data-testid*="move_up_"]:hover:not(:disabled),
+                button[kind="secondary"][data-testid*="move_down_"]:hover:not(:disabled),
+                button[data-testid*="move_up_"]:hover:not(:disabled),
+                button[data-testid*="move_down_"]:hover:not(:disabled) {
+                    background-color: #81d4fa !important;
+                    background: #81d4fa !important;
+                    border-color: #4fc3f7 !important;
                 }
                 
                 /* 確保按鈕內的文字/符號置中，加粗箭頭 */
                 button.sort-arrow-button p,
                 button.sort-arrow-button[kind="secondary"] p,
-                .stButton button.sort-arrow-button p {
+                .stButton button.sort-arrow-button p,
+                button[kind="secondary"][data-testid*="move_up_"] p,
+                button[kind="secondary"][data-testid*="move_down_"] p,
+                button[data-testid*="move_up_"] p,
+                button[data-testid*="move_down_"] p {
                     margin: 0 !important;
                     padding: 0 !important;
                     display: flex !important;
@@ -394,33 +451,134 @@ def render_schedule_management():
                     height: 100% !important;
                     line-height: 1 !important;
                     text-align: center !important;
-                    font-weight: bold !important;
+                    font-weight: 900 !important;
+                    font-size: 1.2rem !important;
+                    color: #01579b !important;
+                }
+                
+                /* 表格列間距優化 - 更緊湊，強制減少行高 */
+                /* 只針對表格行內的 columns（通過 JavaScript 添加 .table-row-column 類別） */
+                div[data-testid="column"].table-row-column {
+                    padding: 0.05rem 0.2rem !important;
+                    min-height: 0 !important;
+                    height: auto !important;
+                    max-height: none !important;
+                }
+                
+                /* 強制減少表格行的整體高度 - 只針對表格行內的 columns */
+                div[data-testid="column"].table-row-column > div,
+                div[data-testid="column"].table-row-column > div > div,
+                div[data-testid="column"].table-row-column > div > div > div {
+                    min-height: 0 !important;
+                    height: auto !important;
+                    max-height: none !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    line-height: 1.2 !important;
+                }
+                
+                /* 確保操作按鈕的 columns 保持正常高度 */
+                div[data-testid="column"]:not(.table-row-column) {
+                    min-height: auto !important;
+                    padding: 0.5rem 0.2rem !important;
+                }
+                
+                /* 通過 JavaScript 添加的樣式標記 - 確保操作按鈕有足夠高度 */
+                button.action-button-primary,
+                div[data-testid="stButton"]:has(button.action-button-primary) {
+                    min-height: 3.5rem !important;
+                    height: auto !important;
+                    padding: 0.75rem 1.5rem !important;
                     font-size: 1.1rem !important;
-                    color: #333 !important;
+                    line-height: 1.6 !important;
                 }
                 
-                /* 表格列間距優化 */
-                div[data-testid="column"] {
-                    padding: 0.2rem 0.3rem !important;
+                button.action-button-primary {
+                    min-height: 3.5rem !important;
+                    height: auto !important;
+                    padding: 0.75rem 1.5rem !important;
+                    font-size: 1.1rem !important;
+                    line-height: 1.6 !important;
                 }
                 
-                /* 表格行間距優化 */
+                /* 表格行間距優化 - 更緊湊 */
                 hr {
-                    margin: 0.25rem 0 !important;
+                    margin: 0.05rem 0 !important;
                     border-color: #e0e0e0 !important;
+                    height: 1px !important;
+                    border-width: 1px !important;
                 }
                 
-                /* 文字內容對齊 */
+                /* 文字內容對齊 - 減少間距 */
                 .stMarkdown {
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    line-height: 1.2 !important;
+                    min-height: 0 !important;
+                    height: auto !important;
+                }
+                
+                /* 表頭文字樣式 - 更緊湊 */
+                div[data-testid="column"] div[style*="font-weight: bold"] {
                     padding: 0.1rem 0 !important;
                     margin: 0 !important;
+                    font-size: 0.95rem !important;
+                    line-height: 1.2 !important;
                 }
                 
-                /* 表頭文字樣式 */
-                div[data-testid="column"] div[style*="font-weight: bold"] {
-                    padding: 0.3rem 0 !important;
+                /* 減少 checkbox 的高度 */
+                div[data-testid="stCheckbox"],
+                div[data-testid="stCheckbox"] > label,
+                div[data-testid="stCheckbox"] > div,
+                div[data-testid="stCheckbox"] > label > div {
+                    min-height: 0 !important;
+                    height: auto !important;
+                    padding: 0 !important;
                     margin: 0 !important;
-                    font-size: 0.95rem !important;
+                    line-height: 1 !important;
+                }
+                
+                /* 減少按鈕容器的高度 - 只在佇列管理頁面的表格行內 */
+                /* 只針對表格行內的按鈕容器，不影響其他頁面 */
+                div[data-testid="column"].table-row-column div[data-testid="stButton"]:not(:has(button.action-button-primary)),
+                div[data-testid="column"].table-row-column div[data-testid="stButton"]:not(:has(button.action-button-primary)) > button:not(.action-button-primary),
+                div[data-testid="column"].table-row-column div[data-testid="stButton"]:not(:has(button.action-button-primary)) > div {
+                    min-height: 0 !important;
+                    height: auto !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                }
+                
+                /* 確保操作按鈕容器有足夠高度 - 只在佇列管理頁面，增強視覺效果 */
+                button.action-button-primary,
+                div[data-testid="stButton"]:has(button.action-button-primary) button.action-button-primary {
+                    min-height: 4rem !important;
+                    height: auto !important;
+                    padding: 1rem 2rem !important;
+                    font-size: 1.2rem !important;
+                    font-weight: 700 !important;
+                    line-height: 1.5 !important;
+                    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3), 0 2px 4px rgba(231, 76, 60, 0.2) !important;
+                    border: 2px solid #c0392b !important;
+                    border-radius: 8px !important;
+                    transition: all 0.3s ease !important;
+                }
+                
+                button.action-button-primary:hover {
+                    box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4), 0 4px 6px rgba(231, 76, 60, 0.3) !important;
+                    transform: translateY(-2px) !important;
+                    background-color: #ec7063 !important;
+                }
+                
+                /* 強制所有 Streamlit 組件緊湊 - 只在表格行內 */
+                div[data-testid="column"].table-row-column * {
+                    line-height: 1.2 !important;
+                }
+                
+                /* 特別針對包含表格行的容器 */
+                div[data-testid="column"].table-row-column:has(div[style*="text-align: center"]) {
+                    min-height: 0 !important;
+                    height: auto !important;
                 }
                 </style>
                 <script>
@@ -441,6 +599,31 @@ def render_schedule_management():
                         // 找到所有按鈕
                         const allButtons = document.querySelectorAll('button');
                         const secondaryButtons = document.querySelectorAll('button[kind="secondary"]');
+                        
+                        // 使用 MutationObserver 監聽按鈕樣式變化
+                        if (!window.sortButtonObserver) {
+                            window.sortButtonObserver = new MutationObserver(function(mutations) {
+                                mutations.forEach(function(mutation) {
+                                    if (mutation.type === 'attributes') {
+                                        const button = mutation.target;
+                                        const buttonText = (button.textContent || button.innerText || '').trim();
+                                        const testId = button.getAttribute('data-testid') || '';
+                                        if ((buttonText === '↑' || buttonText === '↓') || 
+                                            testId.includes('move_up_') || testId.includes('move_down_')) {
+                                            // 強制重新應用樣式
+                                            button.style.setProperty('background-color', '#b3e5fc', 'important');
+                                            button.style.setProperty('background', '#b3e5fc', 'important');
+                                            button.style.setProperty('border', '1px solid #81d4fa', 'important');
+                                            button.style.setProperty('border-color', '#81d4fa', 'important');
+                                            button.style.setProperty('color', '#01579b', 'important');
+                                            button.style.setProperty('font-weight', '900', 'important');
+                                            button.style.setProperty('font-size', '1.2rem', 'important');
+                                            button.style.removeProperty('background-image');
+                                        }
+                                    }
+                                });
+                            });
+                        }
                         
                         // #region agent log
                         try {
@@ -479,16 +662,60 @@ def render_schedule_management():
                                 
                                 // 使用 cssText 一次性設置所有樣式（更強制性）
                                 const existingStyle = button.getAttribute('style') || '';
-                                button.setAttribute('style', existingStyle + '; background-color: #e3f2fd !important; border: 1px solid #90caf9 !important; height: 1.8rem !important; min-height: 1.8rem !important; max-height: 1.8rem !important; width: 2rem !important; min-width: 2rem !important; max-width: 2rem !important; flex-shrink: 0 !important; margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; box-sizing: border-box !important; text-align: center !important; line-height: 1 !important;');
+                                button.setAttribute('style', existingStyle + '; background-color: #b3e5fc !important; background: #b3e5fc !important; border: 1px solid #81d4fa !important; border-color: #81d4fa !important; height: 1.8rem !important; min-height: 1.8rem !important; max-height: 1.8rem !important; width: 2rem !important; min-width: 2rem !important; max-width: 2rem !important; flex-shrink: 0 !important; margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; box-sizing: border-box !important; text-align: center !important; line-height: 1 !important; color: #01579b !important; font-weight: 900 !important; font-size: 1.2rem !important; white-space: nowrap !important;');
                                 
-                                // 同時使用 setProperty 作為備用
-                                button.style.setProperty('background-color', '#e3f2fd', 'important');
-                                button.style.setProperty('border', '1px solid #90caf9', 'important');
-                                button.style.setProperty('height', '1.8rem', 'important');
-                                button.style.setProperty('width', '2rem', 'important');
+                                // 同時使用 setProperty 作為備用，強制覆蓋 Streamlit 的 secondary 按鈕樣式 - 增強視覺效果
+                                button.style.setProperty('background-color', '#4fc3f7', 'important');
+                                button.style.setProperty('background', '#4fc3f7', 'important');
+                                button.style.setProperty('border', '2px solid #0288d1', 'important');
+                                button.style.setProperty('border-color', '#0288d1', 'important');
+                                button.style.setProperty('color', '#ffffff', 'important');
+                                button.style.setProperty('height', '2.2rem', 'important');
+                                button.style.setProperty('width', '2.5rem', 'important');
                                 button.style.setProperty('display', 'flex', 'important');
                                 button.style.setProperty('align-items', 'center', 'important');
                                 button.style.setProperty('justify-content', 'center', 'important');
+                                button.style.setProperty('font-weight', '900', 'important');
+                                button.style.setProperty('font-size', '1.4rem', 'important');
+                                button.style.setProperty('white-space', 'nowrap', 'important');
+                                button.style.setProperty('box-shadow', '0 2px 4px rgba(2, 136, 209, 0.3), 0 1px 2px rgba(2, 136, 209, 0.2)', 'important');
+                                button.style.setProperty('border-radius', '6px', 'important');
+                                button.style.setProperty('transition', 'all 0.2s ease', 'important');
+                                button.style.setProperty('cursor', 'pointer', 'important');
+                                // 移除可能衝突的背景圖片
+                                button.style.removeProperty('background-image');
+                                
+                                // 添加 hover 效果
+                                if (!button.hasAttribute('data-arrow-button-styled')) {
+                                    button.setAttribute('data-arrow-button-styled', 'true');
+                                    button.onmouseenter = function() {
+                                        if (!this.disabled) {
+                                            this.style.setProperty('background-color', '#29b6f6', 'important');
+                                            this.style.setProperty('background', '#29b6f6', 'important');
+                                            this.style.setProperty('border-color', '#0277bd', 'important');
+                                            this.style.setProperty('box-shadow', '0 4px 8px rgba(2, 136, 209, 0.4), 0 2px 4px rgba(2, 136, 209, 0.3)', 'important');
+                                            this.style.setProperty('transform', 'translateY(-1px)', 'important');
+                                        }
+                                    };
+                                    button.onmouseleave = function() {
+                                        if (!this.disabled) {
+                                            this.style.setProperty('background-color', '#4fc3f7', 'important');
+                                            this.style.setProperty('background', '#4fc3f7', 'important');
+                                            this.style.setProperty('border-color', '#0288d1', 'important');
+                                            this.style.setProperty('box-shadow', '0 2px 4px rgba(2, 136, 209, 0.3), 0 1px 2px rgba(2, 136, 209, 0.2)', 'important');
+                                            this.style.setProperty('transform', 'translateY(0)', 'important');
+                                        }
+                                    };
+                                }
+                                
+                                // 開始監聽這個按鈕的變化
+                                if (window.sortButtonObserver) {
+                                    window.sortButtonObserver.observe(button, {
+                                        attributes: true,
+                                        attributeFilter: ['style', 'class'],
+                                        attributeOldValue: false
+                                    });
+                                }
                                 
                                 // #region agent log
                                 try {
@@ -511,21 +738,25 @@ def render_schedule_management():
                                     if (elText === '↑' || elText === '↓') {
                                         foundArrow = true;
                                         const existingElStyle = el.getAttribute('style') || '';
-                                        el.setAttribute('style', existingElStyle + '; font-weight: bold !important; font-size: 1.1rem !important; margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 100% !important; height: 100% !important; line-height: 1 !important;');
-                                        el.style.setProperty('font-weight', 'bold', 'important');
-                                        el.style.setProperty('font-size', '1.1rem', 'important');
+                                        el.setAttribute('style', existingElStyle + '; font-weight: 900 !important; font-size: 1.4rem !important; margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 100% !important; height: 100% !important; line-height: 1 !important; text-align: center !important;');
+                                        el.style.setProperty('font-weight', '900', 'important');
+                                        el.style.setProperty('font-size', '1.4rem', 'important');
                                         el.style.setProperty('display', 'flex', 'important');
                                         el.style.setProperty('align-items', 'center', 'important');
                                         el.style.setProperty('justify-content', 'center', 'important');
+                                        el.style.setProperty('text-align', 'center', 'important');
+                                        el.style.setProperty('color', '#ffffff', 'important');
                                     }
                                 });
                                 
                                 // 如果沒有找到子元素中的箭頭，直接設置按鈕文字樣式
                                 if (!foundArrow) {
                                     const existingBtnStyle = button.getAttribute('style') || '';
-                                    button.setAttribute('style', existingBtnStyle + '; font-weight: bold !important; font-size: 1.1rem !important;');
-                                    button.style.setProperty('font-weight', 'bold', 'important');
-                                    button.style.setProperty('font-size', '1.1rem', 'important');
+                                    button.setAttribute('style', existingBtnStyle + '; font-weight: 900 !important; font-size: 1.4rem !important; text-align: center !important; color: #ffffff !important;');
+                                    button.style.setProperty('font-weight', '900', 'important');
+                                    button.style.setProperty('font-size', '1.4rem', 'important');
+                                    button.style.setProperty('text-align', 'center', 'important');
+                                    button.style.setProperty('color', '#ffffff', 'important');
                                 }
                                 
                                 // #region agent log
@@ -544,38 +775,263 @@ def render_schedule_management():
                         // #endregion
                     }
                     
+                    // 強制減少表格行高的函數 - 只針對表格行，排除操作按鈕
+                    function compactTableRows() {
+                        // 找到所有 columns
+                        const columns = document.querySelectorAll('div[data-testid="column"]');
+                        columns.forEach(function(col) {
+                            // 檢查是否包含主要操作按鈕（排除這些 columns）
+                            const buttons = col.querySelectorAll('button');
+                            let hasActionButton = false;
+                            buttons.forEach(function(btn) {
+                                const btnText = (btn.textContent || btn.innerText || '').trim();
+                                const testId = btn.getAttribute('data-testid') || '';
+                                // 檢查是否是操作按鈕（不是上下箭頭按鈕）
+                                // 精確匹配：只匹配「確認加入至...的排程」和「移除選中」
+                                if (((btnText.includes('確認加入至') && btnText.includes('的排程')) || 
+                                     btnText.includes('移除選中')) &&
+                                    !btnText.includes('確認寫入') && 
+                                    !btnText.includes('刪除選取') &&
+                                    !testId.includes('move_up_') && 
+                                    !testId.includes('move_down_')) {
+                                    hasActionButton = true;
+                                }
+                            });
+                            
+                            // 只處理不包含操作按鈕的 columns（表格行）
+                            if (!hasActionButton) {
+                                // 添加類別標記，讓 CSS 可以選擇
+                                col.classList.add('table-row-column');
+                                
+                                // 強制設置最小高度為 0
+                                col.style.setProperty('min-height', '0', 'important');
+                                col.style.setProperty('height', 'auto', 'important');
+                                col.style.setProperty('padding-top', '0.05rem', 'important');
+                                col.style.setProperty('padding-bottom', '0.05rem', 'important');
+                                
+                                // 處理所有子元素（排除按鈕和輸入框）
+                                const children = col.querySelectorAll('*');
+                                children.forEach(function(child) {
+                                    if (child.tagName !== 'BUTTON' && child.tagName !== 'INPUT') {
+                                        child.style.setProperty('min-height', '0', 'important');
+                                        child.style.setProperty('height', 'auto', 'important');
+                                        child.style.setProperty('line-height', '1.2', 'important');
+                                    }
+                                });
+                            } else {
+                                // 對於包含操作按鈕的 columns，移除類別並恢復正常高度
+                                col.classList.remove('table-row-column');
+                                col.style.setProperty('min-height', 'auto', 'important');
+                                col.style.setProperty('height', 'auto', 'important');
+                                col.style.setProperty('padding-top', '0.5rem', 'important');
+                                col.style.setProperty('padding-bottom', '0.5rem', 'important');
+                                
+                                // 確保操作按鈕有足夠的高度
+                                // 精確匹配：只匹配「確認加入至...的排程」和「移除選中」
+                                buttons.forEach(function(btn) {
+                                    const btnText = (btn.textContent || btn.innerText || '').trim();
+                                    if (((btnText.includes('確認加入至') && btnText.includes('的排程')) || 
+                                         btnText.includes('移除選中')) &&
+                                        !btnText.includes('確認寫入') && 
+                                        !btnText.includes('刪除選取')) {
+                                        btn.classList.add('action-button-primary');
+                                        btn.style.setProperty('min-height', '3.5rem', 'important');
+                                        btn.style.setProperty('height', 'auto', 'important');
+                                        btn.style.setProperty('padding', '0.75rem 1.5rem', 'important');
+                                        btn.style.setProperty('font-size', '1.1rem', 'important');
+                                        btn.style.setProperty('line-height', '1.6', 'important');
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // 單獨處理所有操作按鈕，確保它們有足夠高度
+                        // 精確匹配：只匹配「確認加入至...的排程」和「移除選中」
+                        const allButtons = document.querySelectorAll('button');
+                        allButtons.forEach(function(btn) {
+                            const btnText = (btn.textContent || btn.innerText || '').trim();
+                            const testId = btn.getAttribute('data-testid') || '';
+                            if (((btnText.includes('確認加入至') && btnText.includes('的排程')) || 
+                                 btnText.includes('移除選中')) &&
+                                !btnText.includes('確認寫入') && 
+                                !btnText.includes('刪除選取') &&
+                                !testId.includes('move_up_') && 
+                                !testId.includes('move_down_')) {
+                                btn.classList.add('action-button-primary');
+                                btn.style.setProperty('min-height', '3.5rem', 'important');
+                                btn.style.setProperty('height', 'auto', 'important');
+                                btn.style.setProperty('padding', '0.75rem 1.5rem', 'important');
+                                btn.style.setProperty('font-size', '1.1rem', 'important');
+                                btn.style.setProperty('line-height', '1.6', 'important');
+                                
+                                // 同時處理按鈕容器
+                                const btnContainer = btn.closest('div[data-testid="stButton"]');
+                                if (btnContainer) {
+                                    btnContainer.style.setProperty('min-height', '3.5rem', 'important');
+                                    btnContainer.style.setProperty('height', 'auto', 'important');
+                                    btnContainer.style.setProperty('padding', '0', 'important');
+                                }
+                            }
+                        });
+                    }
+                    
+                    // 專門處理操作按鈕的函數 - 增強視覺效果
+                    // 精確匹配：只匹配「確認加入至...的排程」和「移除選中」
+                    function fixActionButtons() {
+                        const allButtons = document.querySelectorAll('button');
+                        allButtons.forEach(function(btn) {
+                            const btnText = (btn.textContent || btn.innerText || '').trim();
+                            const testId = btn.getAttribute('data-testid') || '';
+                            if (((btnText.includes('確認加入至') && btnText.includes('的排程')) || 
+                                 btnText.includes('移除選中')) &&
+                                !btnText.includes('確認寫入') && 
+                                !btnText.includes('刪除選取') &&
+                                !testId.includes('move_up_') && 
+                                !testId.includes('move_down_')) {
+                                // 強制設置樣式 - 增強視覺效果
+                                btn.style.cssText = btn.style.cssText.replace(/min-height[^;]*;?/g, '');
+                                btn.style.cssText = btn.style.cssText.replace(/height[^;]*;?/g, '');
+                                btn.style.cssText = btn.style.cssText.replace(/padding[^;]*;?/g, '');
+                                btn.style.cssText = btn.style.cssText.replace(/box-shadow[^;]*;?/g, '');
+                                btn.style.cssText = btn.style.cssText.replace(/border[^;]*;?/g, '');
+                                btn.style.setProperty('min-height', '4rem', 'important');
+                                btn.style.setProperty('height', 'auto', 'important');
+                                btn.style.setProperty('padding', '1rem 2rem', 'important');
+                                btn.style.setProperty('font-size', '1.2rem', 'important');
+                                btn.style.setProperty('font-weight', '700', 'important');
+                                btn.style.setProperty('line-height', '1.5', 'important');
+                                btn.style.setProperty('box-shadow', '0 4px 8px rgba(231, 76, 60, 0.3), 0 2px 4px rgba(231, 76, 60, 0.2)', 'important');
+                                btn.style.setProperty('border', '2px solid #c0392b', 'important');
+                                btn.style.setProperty('border-radius', '8px', 'important');
+                                btn.style.setProperty('transition', 'all 0.3s ease', 'important');
+                                
+                                // 添加 hover 效果
+                                if (!btn.hasAttribute('data-action-button-styled')) {
+                                    btn.setAttribute('data-action-button-styled', 'true');
+                                    btn.onmouseenter = function() {
+                                        this.style.setProperty('box-shadow', '0 6px 12px rgba(231, 76, 60, 0.4), 0 4px 6px rgba(231, 76, 60, 0.3)', 'important');
+                                        this.style.setProperty('transform', 'translateY(-2px)', 'important');
+                                        this.style.setProperty('background-color', '#ec7063', 'important');
+                                    };
+                                    btn.onmouseleave = function() {
+                                        this.style.setProperty('box-shadow', '0 4px 8px rgba(231, 76, 60, 0.3), 0 2px 4px rgba(231, 76, 60, 0.2)', 'important');
+                                        this.style.setProperty('transform', 'translateY(0)', 'important');
+                                        this.style.setProperty('background-color', '#e74c3c', 'important');
+                                    };
+                                }
+                                
+                                // 處理按鈕容器
+                                const btnContainer = btn.closest('div[data-testid="stButton"]');
+                                if (btnContainer) {
+                                    btnContainer.style.setProperty('min-height', '4rem', 'important');
+                                    btnContainer.style.setProperty('height', 'auto', 'important');
+                                }
+                                
+                                // 處理父 column
+                                const parentCol = btn.closest('div[data-testid="column"]');
+                                if (parentCol) {
+                                    parentCol.style.setProperty('min-height', 'auto', 'important');
+                                    parentCol.style.setProperty('padding-top', '1rem', 'important');
+                                    parentCol.style.setProperty('padding-bottom', '1rem', 'important');
+                                }
+                            }
+                        });
+                    }
+                    
                     // 立即執行
                     adjustSortButtons();
+                    compactTableRows();
+                    fixActionButtons();
                     
                     // 頁面載入時執行
                     if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', adjustSortButtons);
+                        document.addEventListener('DOMContentLoaded', function() {
+                            adjustSortButtons();
+                            compactTableRows();
+                            fixActionButtons();
+                        });
                     } else {
                         adjustSortButtons();
+                        compactTableRows();
+                        fixActionButtons();
                     }
                     
-                    // 監聽 DOM 變化（Streamlit 動態更新時）
+                    // 監聽 DOM 變化（Streamlit 動態更新時）- 增強版
                     const observer = new MutationObserver(function(mutations) {
-                        setTimeout(adjustSortButtons, 10);
+                        let shouldAdjust = false;
+                        mutations.forEach(function(mutation) {
+                            if (mutation.type === 'childList') {
+                                mutation.addedNodes.forEach(function(node) {
+                                    if (node.nodeType === 1) { // Element node
+                                        if (node.tagName === 'BUTTON' || node.querySelectorAll) {
+                                            const buttons = node.tagName === 'BUTTON' ? [node] : node.querySelectorAll('button');
+                                            buttons.forEach(function(btn) {
+                                                const txt = (btn.textContent || btn.innerText || '').trim();
+                                                const testId = btn.getAttribute('data-testid') || '';
+                                                if (txt === '↑' || txt === '↓' || testId.includes('move_up_') || testId.includes('move_down_')) {
+                                                    shouldAdjust = true;
+                                                }
+                                            });
+                                        }
+                                        // 檢查是否是新的 column
+                                        if (node.getAttribute && node.getAttribute('data-testid') === 'column') {
+                                            shouldAdjust = true;
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        if (shouldAdjust) {
+                            setTimeout(function() {
+                                adjustSortButtons();
+                                compactTableRows();
+                                fixActionButtons();
+                            }, 10);
+                        } else {
+                            // 即使沒有特定變化，也定期緊湊行高和修復按鈕
+                            compactTableRows();
+                            fixActionButtons();
+                        }
                     });
-                    observer.observe(document.body, { childList: true, subtree: true });
+                    observer.observe(document.body, { 
+                        childList: true, 
+                        subtree: true,
+                        attributes: false
+                    });
                     
                     // 定期檢查（備用方案）- 更頻繁執行
-                    setInterval(adjustSortButtons, 100);
+                    setInterval(function() {
+                        adjustSortButtons();
+                        compactTableRows();
+                        fixActionButtons();
+                    }, 100);
                     
                     // 延遲執行，確保 DOM 完全載入
-                    setTimeout(adjustSortButtons, 50);
-                    setTimeout(adjustSortButtons, 150);
-                    setTimeout(adjustSortButtons, 300);
-                    setTimeout(adjustSortButtons, 500);
-                    setTimeout(adjustSortButtons, 1000);
+                    setTimeout(function() { adjustSortButtons(); compactTableRows(); fixActionButtons(); }, 50);
+                    setTimeout(function() { adjustSortButtons(); compactTableRows(); fixActionButtons(); }, 150);
+                    setTimeout(function() { adjustSortButtons(); compactTableRows(); fixActionButtons(); }, 300);
+                    setTimeout(function() { adjustSortButtons(); compactTableRows(); fixActionButtons(); }, 500);
+                    setTimeout(function() { adjustSortButtons(); compactTableRows(); fixActionButtons(); }, 1000);
                 })();
                 </script>
                 """, unsafe_allow_html=True)
                 
                 # 創建自定義表格，將上下按鈕放在排序欄位前方
                 # 表頭 - 優化欄位寬度分配，確保對齊工整
-                header_cols = st.columns([0.35, 0.3, 0.5, 0.9, 0.6, 0.5, 0.5, 1.3, 0.75, 0.75, 0.75])
+                # 添加緊湊表頭的 CSS
+                st.markdown("""
+                <style>
+                /* 針對表頭的 columns 強制緊湊高度 */
+                div[data-testid="column"]:has(div[style*="font-weight: bold"]) {
+                    min-height: 0 !important;
+                    height: auto !important;
+                    padding-top: 0.15rem !important;
+                    padding-bottom: 0.15rem !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
+                header_cols = st.columns([0.35, 0.3, 0.5, 0.9, 0.6, 0.5, 0.5, 1.3, 0.75, 0.75, 0.75], gap="small")
                 for i, col in enumerate(header_cols):
                     with col:
                         if i == 0:  # 刪除
@@ -601,7 +1057,7 @@ def render_schedule_management():
                         elif i == 10:  # 已完成
                             st.markdown('<div style="font-weight: bold; text-align: center; white-space: nowrap; writing-mode: horizontal-tb;">已完成</div>', unsafe_allow_html=True)
                 
-                st.markdown('<hr style="margin: 0.3rem 0;">', unsafe_allow_html=True)
+                st.markdown('<hr style="margin: 0.15rem 0;">', unsafe_allow_html=True)
                 
                 # 資料行 - 使用與表頭相同的欄位寬度
                 for idx, (db_idx, row) in enumerate(display_df.iterrows()):
@@ -609,7 +1065,7 @@ def render_schedule_management():
                     
                     with row_cols[0]:  # 刪除選項框
                         # 使用容器來置中選項框，減少間距
-                        st.markdown('<div style="display: flex; justify-content: center; align-items: center; padding: 0.1rem 0;">', unsafe_allow_html=True)
+                        st.markdown('<div style="display: flex; justify-content: center; align-items: center; padding: 0.05rem 0;">', unsafe_allow_html=True)
                         checkbox_key = f"del_{target_line}_{db_idx}"
                         checkbox_value = st.checkbox(
                             "", 
@@ -622,49 +1078,211 @@ def render_schedule_management():
                         st.markdown('</div>', unsafe_allow_html=True)
                     
                     with row_cols[1]:  # 排序號碼
-                        st.markdown(f'<div style="text-align: center; padding: 0.3rem 0; font-weight: 500;">{row["排序"]}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.1rem 0; font-weight: 500;">{row["排序"]}</div>', unsafe_allow_html=True)
                     
                     with row_cols[2]:  # 上下按鈕
-                        # 使用 columns 強制水平排列，改用文字符號
+                        # 使用 columns 強制水平排列
                         disabled_up = (idx == 0)
                         disabled_down = (idx == len(display_df) - 1)
                         btn_col1, btn_col2 = st.columns([1, 1], gap="small")
+                        # 減少按鈕列的間距
+                        st.markdown("""
+                        <style>
+                        div[data-testid="column"]:has(button[data-testid*="move_up_"]),
+                        div[data-testid="column"]:has(button[data-testid*="move_down_"]) {
+                            padding: 0.05rem 0.1rem !important;
+                        }
+                        </style>
+                        """, unsafe_allow_html=True)
                         with btn_col1:
-                            if st.button("↑", key=f"move_up_{target_line}_{idx}", disabled=disabled_up, use_container_width=True, type="secondary"):
+                            btn_up_key = f"move_up_{target_line}_{idx}"
+                            if st.button("↑", key=btn_up_key, disabled=disabled_up, use_container_width=True, type="secondary"):
                                 st.session_state[move_key] = ("up", idx)
                                 st.rerun()
                         with btn_col2:
-                            if st.button("↓", key=f"move_down_{target_line}_{idx}", disabled=disabled_down, use_container_width=True, type="secondary"):
+                            btn_down_key = f"move_down_{target_line}_{idx}"
+                            if st.button("↓", key=btn_down_key, disabled=disabled_down, use_container_width=True, type="secondary"):
                                 st.session_state[move_key] = ("down", idx)
                                 st.rerun()
+                        
+                        # 在按鈕創建後立即強制應用樣式（使用更強力的方法）
+                        st.markdown(f"""
+                        <script>
+                        (function() {{
+                            function forceStyleArrowButtons() {{
+                                // 方法1: 通過 data-testid 查找
+                                const btnUp = document.querySelector('button[data-testid*="{btn_up_key}"]');
+                                const btnDown = document.querySelector('button[data-testid*="{btn_down_key}"]');
+                                
+                                // 方法2: 通過文字內容查找（備用）
+                                const allButtons = document.querySelectorAll('button');
+                                let foundUp = btnUp;
+                                let foundDown = btnDown;
+                                
+                                if (!foundUp || !foundDown) {{
+                                    allButtons.forEach(function(btn) {{
+                                        const txt = (btn.textContent || btn.innerText || '').trim();
+                                        if (txt === '↑' && !foundUp) {{
+                                            const testId = btn.getAttribute('data-testid') || '';
+                                            if (testId.includes('move_up_')) foundUp = btn;
+                                        }}
+                                        if (txt === '↓' && !foundDown) {{
+                                            const testId = btn.getAttribute('data-testid') || '';
+                                            if (testId.includes('move_down_')) foundDown = btn;
+                                        }}
+                                    }});
+                                }}
+                                
+                                function applyStyles(btn) {{
+                                    if (!btn) return;
+                                    
+                                    // 使用 cssText 一次性設置所有樣式（最強力）- 增強視覺效果
+                                    btn.style.cssText = `
+                                        background-color: #4fc3f7 !important;
+                                        background: #4fc3f7 !important;
+                                        border: 2px solid #0288d1 !important;
+                                        border-color: #0288d1 !important;
+                                        color: #ffffff !important;
+                                        width: 2.5rem !important;
+                                        min-width: 2.5rem !important;
+                                        max-width: 2.5rem !important;
+                                        height: 2.2rem !important;
+                                        min-height: 2.2rem !important;
+                                        max-height: 2.2rem !important;
+                                        padding: 0 !important;
+                                        margin: 0 !important;
+                                        display: flex !important;
+                                        align-items: center !important;
+                                        justify-content: center !important;
+                                        text-align: center !important;
+                                        font-weight: 900 !important;
+                                        font-size: 1.4rem !important;
+                                        white-space: nowrap !important;
+                                        border-radius: 6px !important;
+                                        cursor: pointer !important;
+                                        box-shadow: 0 2px 4px rgba(2, 136, 209, 0.3), 0 1px 2px rgba(2, 136, 209, 0.2) !important;
+                                        transition: all 0.2s ease !important;
+                                    `;
+                                    
+                                    // 同時使用 setProperty 確保
+                                    btn.style.setProperty('background-color', '#4fc3f7', 'important');
+                                    btn.style.setProperty('background', '#4fc3f7', 'important');
+                                    btn.style.setProperty('border', '2px solid #0288d1', 'important');
+                                    btn.style.setProperty('border-color', '#0288d1', 'important');
+                                    btn.style.setProperty('color', '#ffffff', 'important');
+                                    btn.style.setProperty('font-weight', '900', 'important');
+                                    btn.style.setProperty('font-size', '1.4rem', 'important');
+                                    btn.style.setProperty('box-shadow', '0 2px 4px rgba(2, 136, 209, 0.3), 0 1px 2px rgba(2, 136, 209, 0.2)', 'important');
+                                    btn.style.setProperty('border-radius', '6px', 'important');
+                                    btn.style.setProperty('transition', 'all 0.2s ease', 'important');
+                                    
+                                    // 添加 hover 效果
+                                    if (!btn.hasAttribute('data-arrow-button-styled')) {{
+                                        btn.setAttribute('data-arrow-button-styled', 'true');
+                                        btn.onmouseenter = function() {{
+                                            if (!this.disabled) {{
+                                                this.style.setProperty('background-color', '#29b6f6', 'important');
+                                                this.style.setProperty('background', '#29b6f6', 'important');
+                                                this.style.setProperty('border-color', '#0277bd', 'important');
+                                                this.style.setProperty('box-shadow', '0 4px 8px rgba(2, 136, 209, 0.4), 0 2px 4px rgba(2, 136, 209, 0.3)', 'important');
+                                                this.style.setProperty('transform', 'translateY(-1px)', 'important');
+                                            }}
+                                        }};
+                                        btn.onmouseleave = function() {{
+                                            if (!this.disabled) {{
+                                                this.style.setProperty('background-color', '#4fc3f7', 'important');
+                                                this.style.setProperty('background', '#4fc3f7', 'important');
+                                                this.style.setProperty('border-color', '#0288d1', 'important');
+                                                this.style.setProperty('box-shadow', '0 2px 4px rgba(2, 136, 209, 0.3), 0 1px 2px rgba(2, 136, 209, 0.2)', 'important');
+                                                this.style.setProperty('transform', 'translateY(0)', 'important');
+                                            }}
+                                        }};
+                                    }}
+                                    
+                                    // 處理內部元素
+                                    const textEls = btn.querySelectorAll('p, span, div, *');
+                                    textEls.forEach(function(el) {{
+                                        const elText = (el.textContent || el.innerText || '').trim();
+                                        if (elText === '↑' || elText === '↓') {{
+                                            el.style.cssText = `
+                                                margin: 0 !important;
+                                                padding: 0 !important;
+                                                display: flex !important;
+                                                align-items: center !important;
+                                                justify-content: center !important;
+                                                width: 100% !important;
+                                                height: 100% !important;
+                                                font-weight: 900 !important;
+                                                font-size: 1.4rem !important;
+                                                color: #ffffff !important;
+                                            `;
+                                        }}
+                                    }});
+                                }}
+                                
+                                applyStyles(foundUp);
+                                applyStyles(foundDown);
+                            }}
+                            
+                            // 立即執行多次
+                            forceStyleArrowButtons();
+                            setTimeout(forceStyleArrowButtons, 10);
+                            setTimeout(forceStyleArrowButtons, 50);
+                            setTimeout(forceStyleArrowButtons, 100);
+                            setTimeout(forceStyleArrowButtons, 200);
+                            setTimeout(forceStyleArrowButtons, 500);
+                            
+                            // 監聽 DOM 變化
+                            const observer = new MutationObserver(function() {{
+                                forceStyleArrowButtons();
+                            }});
+                            observer.observe(document.body, {{ childList: true, subtree: true }});
+                            
+                            // 定期檢查
+                            setInterval(forceStyleArrowButtons, 50);
+                        }})();
+                        </script>
+                        """, unsafe_allow_html=True)
                     
-                    # 其他欄位（全部置中對齊，減少 padding）
+                    # 其他欄位（全部置中對齊，減少 padding - 更緊湊）
                     with row_cols[3]:  # 客戶名
-                        st.markdown(f'<div style="text-align: center; padding: 0.2rem 0;">{row.get("客戶名", row.get("內容", ""))}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.05rem 0;">{row.get("客戶名", row.get("內容", ""))}</div>', unsafe_allow_html=True)
                     with row_cols[4]:  # 品種
-                        st.markdown(f'<div style="text-align: center; padding: 0.2rem 0;">{row.get("品種", "")}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.05rem 0;">{row.get("品種", "")}</div>', unsafe_allow_html=True)
                     with row_cols[5]:  # 溫度
-                        st.markdown(f'<div style="text-align: center; padding: 0.2rem 0;">{row.get("溫度", "")}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.05rem 0;">{row.get("溫度", "")}</div>', unsafe_allow_html=True)
                     with row_cols[6]:  # 密度
-                        st.markdown(f'<div style="text-align: center; padding: 0.2rem 0;">{row.get("密度", "")}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.05rem 0;">{row.get("密度", "")}</div>', unsafe_allow_html=True)
                     with row_cols[7]:  # 規格
-                        st.markdown(f'<div style="text-align: center; padding: 0.2rem 0;">{row.get("規格", "")}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.05rem 0;">{row.get("規格", "")}</div>', unsafe_allow_html=True)
                     with row_cols[8]:  # 準重
                         value = f"{row.get('準重', 0):.3f}" if pd.notna(row.get('準重')) else ""
-                        st.markdown(f'<div style="text-align: center; padding: 0.2rem 0;">{value}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.05rem 0;">{value}</div>', unsafe_allow_html=True)
                     with row_cols[9]:  # 預計數量
                         value = int(row.get("預計數量", 0)) if pd.notna(row.get("預計數量")) else 0
-                        st.markdown(f'<div style="text-align: center; padding: 0.2rem 0;">{value}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.05rem 0;">{value}</div>', unsafe_allow_html=True)
                     with row_cols[10]:  # 已完成
                         value = int(row.get("已完成", 0)) if pd.notna(row.get("已完成")) else 0
-                        st.markdown(f'<div style="text-align: center; padding: 0.2rem 0;">{value}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align: center; padding: 0.05rem 0;">{value}</div>', unsafe_allow_html=True)
                     
                     if idx < len(display_df) - 1:
-                        st.markdown('<hr style="margin: 0.2rem 0;">', unsafe_allow_html=True)
+                        st.markdown('<hr style="margin: 0.1rem 0;">', unsafe_allow_html=True)
             
             with col_q2:
                 st.write("")  # 空白行
                 # 刪除工單按鈕（需要二次確認）
+                # 確保按鈕有足夠高度（通過 JavaScript 處理，這裡的 CSS 僅作為備用）
+                st.markdown("""
+                <style>
+                button.action-button-primary {
+                    min-height: 3.5rem !important;
+                    height: auto !important;
+                    padding: 0.75rem 1.5rem !important;
+                    font-size: 1.1rem !important;
+                    line-height: 1.6 !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
                 if st.button(f"🗑️ 移除選中", type="primary", width='stretch'):
                     # 收集要刪除的工單資訊 - 從 session_state 中直接讀取 checkbox 狀態
                     indices_to_remove = []
@@ -857,7 +1475,22 @@ def render_reports():
             report_df = full_df.groupby(['產線', '日期', '班別', '組別', '溫度等級', '品種', '密度', '長', '寬', '高', '準重']).size().reset_index(name='數量')
             report_df['總計'] = (report_df['數量'] * report_df['準重']).round(0).astype(int)
             report_df = report_df.rename(columns={'產線': 'Line.', '長': '長度', '寬': '寬度', '高': '厚度', '準重': '標準重量'})
-            export_df = report_df[final_cols].sort_values(by=['Line.', '日期', '班別']); export_df.index = range(1, len(export_df) + 1)
+            
+            # 自定義排序：班別按早、中、晚順序，品種中 XD 排在當班最上方
+            # 先創建班別的排序順序（早班=1, 中班=2, 晚班=3）
+            shift_order = {'早班': 1, '中班': 2, '晚班': 3}
+            report_df['班別排序'] = report_df['班別'].map(shift_order).fillna(99)
+            
+            # 創建品種排序（XD=0 排在最前，其他=1）
+            report_df['品種排序'] = report_df['品種'].apply(lambda x: 0 if str(x).strip() == 'XD' else 1)
+            
+            # 按 Line.、日期、班別排序、品種排序、其他欄位排序
+            export_df = report_df.sort_values(
+                by=['Line.', '日期', '班別排序', '組別', '溫度等級', '品種排序', '品種', '密度', '長度', '寬度', '厚度', '標準重量']
+            )
+            # 選擇最終需要的欄位並移除臨時排序欄位
+            export_df = export_df[final_cols]
+            export_df.index = range(1, len(export_df) + 1)
         else:
             # 如果 full_df 為空或缺少 '產線' 欄位，設置 has_data_daily 為 False
             has_data_daily = False

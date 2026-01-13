@@ -222,12 +222,35 @@ def save_data():
                 # 轉換任何 Timestamp 類型欄位
                 new_logs = convert_timestamps_to_string(new_logs)
                 
-                # 只插入新記錄
+                # [改進] 檢查資料庫中是否已存在相同記錄（防止重複寫入）
                 if not new_logs.empty:
-                    new_logs.to_sql('production_logs', conn, if_exists='append', index=False)
-                
-                # 更新已保存的記錄數量
-                st.session_state[saved_count_key] = current_count
+                    filtered_logs = []
+                    for _, row in new_logs.iterrows():
+                        # 檢查是否存在相同的記錄（時間、產線、工單號、重量）
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM production_logs 
+                            WHERE 時間 = ? AND 產線 = ? AND 工單號 = ? 
+                            AND ABS(實測重 - ?) < 0.01
+                        """, (row['時間'], row['產線'], row['工單號'], row['實測重']))
+                        exists = cursor.fetchone()[0] > 0
+                        
+                        if not exists:
+                            filtered_logs.append(row)
+                        else:
+                            print(f"⚠️ 跳過重複記錄：{row['時間']} - {row['產線']} - {row['工單號']} - {row['實測重']} kg")
+                    
+                    # 只插入不重複的記錄
+                    if filtered_logs:
+                        filtered_df = pd.DataFrame(filtered_logs)
+                        filtered_df.to_sql('production_logs', conn, if_exists='append', index=False)
+                        # 更新已保存的記錄數量（只計算實際插入的記錄數）
+                        st.session_state[saved_count_key] = saved_count + len(filtered_logs)
+                    else:
+                        # 如果所有記錄都是重複的，仍然更新計數器（避免無限循環）
+                        st.session_state[saved_count_key] = current_count
+                else:
+                    # 更新已保存的記錄數量
+                    st.session_state[saved_count_key] = current_count
         
         conn.commit()
     except Exception as e:

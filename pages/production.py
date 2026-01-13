@@ -581,13 +581,17 @@ def render_record_history(line_n, s_curr, g_curr, wo_std_map, undo_dialog_key):
         if not session_logs.empty: 
             pass_df = session_logs[session_logs["判定結果"]=="PASS"].copy()
             if not pass_df.empty:
-                pass_df = pass_df.sort_index(ascending=False)
+                # 按時間升序排序（最早的在前）
+                pass_df = pass_df.sort_values("時間", ascending=True)
                 # [優化] 向量化時間處理
                 if pd.api.types.is_datetime64_any_dtype(pass_df["時間"]):
                     pass_df["時間"] = pd.to_datetime(pass_df["時間"], errors='coerce').dt.strftime("%H:%M:%S")
                 else:
                     pass_df["時間"] = pass_df["時間"].astype(str).str.split(" ").str[-1]
-                pass_df["序號"] = range(len(pass_df), 0, -1)
+                # 序號從 1 開始遞增（1 是最早的記錄）
+                pass_df["序號"] = range(1, len(pass_df) + 1)
+                # 反轉顯示順序（最新的記錄顯示在最上面）
+                pass_df = pass_df.iloc[::-1]
                 # 格式化實測重為小數點一位
                 pass_df["實測重"] = pd.to_numeric(pass_df["實測重"], errors='coerce').apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
                 html_table = '<div class="table-scroll-container"><table class="styled-table"><thead><tr><th style="width:20%">序號</th><th style="width:40%">時間</th><th style="width:40%">實測重</th></tr></thead><tbody>'
@@ -606,13 +610,17 @@ def render_record_history(line_n, s_curr, g_curr, wo_std_map, undo_dialog_key):
         if not session_logs.empty: 
             ng_df = session_logs[session_logs["判定結果"]=="NG"].copy()
             if not ng_df.empty:
-                ng_df = ng_df.sort_index(ascending=False)
+                # 按時間升序排序（最早的在前）
+                ng_df = ng_df.sort_values("時間", ascending=True)
                 # [優化] 向量化時間處理
                 if pd.api.types.is_datetime64_any_dtype(ng_df["時間"]):
                     ng_df["時間"] = pd.to_datetime(ng_df["時間"], errors='coerce').dt.strftime("%H:%M:%S")
                 else:
                     ng_df["時間"] = ng_df["時間"].astype(str).str.split(" ").str[-1]
-                ng_df["序號"] = range(len(ng_df), 0, -1)
+                # 序號從 1 開始遞增（1 是最早的記錄）
+                ng_df["序號"] = range(1, len(ng_df) + 1)
+                # 反轉顯示順序（最新的記錄顯示在最上面）
+                ng_df = ng_df.iloc[::-1]
                 html_table = '<div class="table-scroll-container"><table class="styled-table"><thead><tr><th style="width:20%">序號</th><th style="width:40%">時間</th><th style="width:40%">NG原因</th></tr></thead><tbody>'
                 # [優化] 使用 itertuples 取代 iterrows
                 for row in ng_df.itertuples():
@@ -811,6 +819,18 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
                 if st.session_state.get(processing_key, False):
                     return  # 如果正在處理，直接返回，不執行任何操作
                 
+                # [時間間隔檢查] 防止連點問題：檢查距離上次記錄的時間間隔
+                last_record_time_key = f"last_record_time_{line_n}"
+                last_record_time = st.session_state.get(last_record_time_key)
+                MIN_RECORD_INTERVAL = 3.0  # 最小記錄間隔：3秒（實際操作中不可能一秒秤一個）
+                
+                if last_record_time is not None:
+                    time_since_last = time.time() - last_record_time
+                    if time_since_last < MIN_RECORD_INTERVAL:
+                        remaining_time = MIN_RECORD_INTERVAL - time_since_last
+                        st.warning(f"⏱️ 操作過快！請等待 {remaining_time:.1f} 秒後再記錄。實際操作中不可能一秒秤一個產品。")
+                        return
+                
                 # 設置處理標記，防止重複執行
                 st.session_state[processing_key] = True
                 
@@ -850,13 +870,33 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
                             st.session_state[f"lock_{line_n}"] = False
                             return
                     
+                    # [重複記錄檢查] 檢查是否已經有相同的記錄（防止系統錯誤重複記錄）
+                    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # 檢查 session_state 中是否已有相同時間和重量的記錄
+                    if not st.session_state.production_logs.empty:
+                        recent_logs = st.session_state.production_logs.tail(5)  # 檢查最近5筆
+                        duplicate_mask = (
+                            (recent_logs["時間"].astype(str).str[:19] == current_time_str[:19]) &
+                            (recent_logs["產線"] == line_n) &
+                            (recent_logs["工單號"] == wo_id) &
+                            (abs(recent_logs["實測重"] - weight_to_record) < 0.01)  # 重量相同（容差0.01kg）
+                        )
+                        if duplicate_mask.any():
+                            st.error("❌ 檢測到重複記錄！系統可能發生錯誤，請稍後再試。")
+                            return
+                    
                     idx = st.session_state.work_orders_db[st.session_state.work_orders_db["工單號碼"] == wo_id].index[0]
                     st.session_state.work_orders_db.at[idx, "已完成數量"] += 1
                     st.session_state.work_orders_db.at[idx, "狀態"] = "生產中"
-                    new_log = pd.DataFrame([[datetime.now().strftime("%Y-%m-%d %H:%M:%S"), line_n, wo_id, product_id, weight_to_record, "PASS", "", g_curr, s_curr, ""]], columns=config.LOG_COLUMNS)
+                    new_log = pd.DataFrame([[current_time_str, line_n, wo_id, product_id, weight_to_record, "PASS", "", g_curr, s_curr, ""]], columns=config.LOG_COLUMNS)
                     st.session_state.production_logs = pd.concat([st.session_state.production_logs, new_log], ignore_index=True)
                     save_data()
                     st.session_state[f"lock_{line_n}"] = True
+                    
+                    # [時間間隔檢查] 記錄本次記錄時間
+                    st.session_state[last_record_time_key] = time.time()
+                    
                     # 清除快照，避免下次誤用
                     if f"snapshot_weight_{line_n}" in st.session_state:
                         del st.session_state[f"snapshot_weight_{line_n}"]
@@ -876,6 +916,18 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
                 processing_key = f"processing_ng_{line_n}"
                 if st.session_state.get(processing_key, False):
                     return  # 如果正在處理，直接返回，不執行任何操作
+                
+                # [時間間隔檢查] 防止連點問題：檢查距離上次記錄的時間間隔
+                last_record_time_key = f"last_record_time_{line_n}"
+                last_record_time = st.session_state.get(last_record_time_key)
+                MIN_RECORD_INTERVAL = 3.0  # 最小記錄間隔：3秒（實際操作中不可能一秒秤一個）
+                
+                if last_record_time is not None:
+                    time_since_last = time.time() - last_record_time
+                    if time_since_last < MIN_RECORD_INTERVAL:
+                        remaining_time = MIN_RECORD_INTERVAL - time_since_last
+                        st.warning(f"⏱️ 操作過快！請等待 {remaining_time:.1f} 秒後再記錄。實際操作中不可能一秒秤一個產品。")
+                        return
                 
                 # 設置處理標記，防止重複執行
                 st.session_state[processing_key] = True
@@ -904,12 +956,32 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
                         st.session_state[f"lock_{line_n}"] = False  # 不鎖定，讓作業員可以重新操作
                         return
                     
+                    # [重複記錄檢查] 檢查是否已經有相同的記錄（防止系統錯誤重複記錄）
+                    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # 檢查 session_state 中是否已有相同時間和重量的記錄
+                    if not st.session_state.production_logs.empty:
+                        recent_logs = st.session_state.production_logs.tail(5)  # 檢查最近5筆
+                        duplicate_mask = (
+                            (recent_logs["時間"].astype(str).str[:19] == current_time_str[:19]) &
+                            (recent_logs["產線"] == line_n) &
+                            (recent_logs["工單號"] == wo_id) &
+                            (abs(recent_logs["實測重"] - weight_to_record) < 0.01)  # 重量相同（容差0.01kg）
+                        )
+                        if duplicate_mask.any():
+                            st.error("❌ 檢測到重複記錄！系統可能發生錯誤，請稍後再試。")
+                            return
+                    
                     r = st.session_state.get(f"ng_sel_{line_n}", "其他")
-                    new_log = pd.DataFrame([[datetime.now().strftime("%Y-%m-%d %H:%M:%S"), line_n, wo_id, product_id, weight_to_record, "NG", r, g_curr, s_curr, ""]], columns=config.LOG_COLUMNS)
+                    new_log = pd.DataFrame([[current_time_str, line_n, wo_id, product_id, weight_to_record, "NG", r, g_curr, s_curr, ""]], columns=config.LOG_COLUMNS)
                     st.session_state.production_logs = pd.concat([st.session_state.production_logs, new_log], ignore_index=True)
                     save_data()
                     st.session_state.toast_msg = (f"🔴 NG: {weight_to_record} kg", None)
                     st.session_state[f"lock_{line_n}"] = True
+                    
+                    # [時間間隔檢查] 記錄本次記錄時間
+                    st.session_state[last_record_time_key] = time.time()
+                    
                     # 清除快照，避免下次誤用
                     if f"snapshot_weight_{line_n}" in st.session_state:
                         del st.session_state[f"snapshot_weight_{line_n}"]

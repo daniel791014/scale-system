@@ -100,6 +100,10 @@ def create_tables():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_time ON production_logs(時間)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_line ON production_logs(產線)")
     
+    # [防重複記錄] 建立組合索引以快速查詢重複記錄（時間、產線、工單號、實測重）
+    # 注意：不使用 UNIQUE 約束，因為時間戳可能有微小差異，我們在應用層面進行重複檢查
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_duplicate_check ON production_logs(時間, 產線, 工單號, 實測重)")
+    
     conn.commit()
     conn.close()
     print(f"✅ 資料庫結構建立完成：{DB_FILE}")
@@ -122,6 +126,18 @@ def init_database():
         print(f"📦 資料庫已初始化：{DB_FILE}")
         _db_init_message_shown = True
     else:
+        # 確保索引存在（對於已存在的資料庫，確保新索引被創建）
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            # 創建防重複記錄的組合索引（如果不存在）
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_duplicate_check ON production_logs(時間, 產線, 工單號, 實測重)")
+            conn.commit()
+        except Exception as e:
+            print(f"⚠️ 創建索引時發生錯誤（可忽略）：{e}")
+        finally:
+            conn.close()
+        
         # 只在第一次檢查時顯示訊息，避免重複輸出
         if not _db_init_message_shown:
             print(f"📦 資料庫已存在：{DB_FILE}")
