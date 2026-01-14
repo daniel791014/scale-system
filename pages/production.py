@@ -9,6 +9,8 @@ from datetime import datetime
 import textwrap
 import time
 import math
+import html
+import re
 
 import config
 import data_manager as dm
@@ -402,9 +404,18 @@ def render_active_line(line_name, cur_s, cur_g, wo_std_map,
                     if not st.session_state.products_db.empty and "產品ID" in st.session_state.products_db.columns and "密度" in st.session_state.products_db.columns:
                         density_df = st.session_state.products_db[["產品ID", "密度"]].copy()
                         density_df = density_df[density_df["密度"].notna()]
-                        density_df["密度"] = density_df["密度"].apply(
-                            lambda x: f"{float(x):.1f}" if pd.notna(x) and str(x).strip() != "" else ""
-                        )
+                        def format_density(x):
+                            """安全地格式化密度值"""
+                            if pd.isna(x):
+                                return ""
+                            x_str = str(x).strip()
+                            if x_str == "" or x_str.upper() == "N/A":
+                                return ""
+                            try:
+                                return f"{float(x):.1f}"
+                            except (ValueError, TypeError):
+                                return ""
+                        density_df["密度"] = density_df["密度"].apply(format_density)
                         density_map = dict(zip(density_df["產品ID"], density_df["密度"]))
                     else:
                         density_map = {}
@@ -428,7 +439,17 @@ def render_active_line(line_name, cur_s, cur_g, wo_std_map,
                         q_df["上限"] = ""
                     for note_col in ['備註1', '備註2', '備註3']:
                         if note_col in latest_queue.columns: 
-                            q_df[note_col] = latest_queue[note_col].apply(lambda x: str(x) if pd.notna(x) and str(x).lower() != 'none' else "")
+                            # 清理備註內容：移除 HTML 標籤並處理特殊字符
+                            def clean_note(x):
+                                if pd.isna(x) or str(x).lower() == 'none':
+                                    return ""
+                                val_str = str(x)
+                                # 先移除任何 HTML 標籤
+                                val_str = re.sub(r'<[^>]+>', '', val_str)
+                                # 移除多餘的空白字符
+                                val_str = val_str.strip()
+                                return val_str
+                            q_df[note_col] = latest_queue[note_col].apply(clean_note)
                         else: 
                             q_df[note_col] = ""
                     # [優化] 向量化進度計算
@@ -457,8 +478,22 @@ def render_active_line(line_name, cur_s, cur_g, wo_std_map,
                     for c in cols:
                         # 使用 getattr 取得屬性值（itertuples 使用屬性而非字典）
                         val = getattr(row, c, "")
-                        val_display = f"<strong>{val}</strong>" if is_active else f"{val}"
-                        td_style = "style='max-width: 120px; white-space: normal; word-wrap: break-word; word-break: break-all; color: #d35400;'" if c in ["備註1", "備註2", "備註3"] else ""
+                        # HTML 轉義，防止 HTML 標籤破壞格式
+                        # 對於備註欄位，先清理再轉義
+                        if c in ["備註1", "備註2", "備註3"]:
+                            # 備註欄位：先清理 HTML 標籤，再轉義
+                            val_str = str(val) if val else ""
+                            # 移除任何殘留的 HTML 標籤（雙重保護）
+                            val_str = re.sub(r'<[^>]+>', '', val_str)
+                            # HTML 轉義
+                            val_escaped = html.escape(val_str)
+                            # 將換行符轉換為 <br> 標籤（在轉義後）
+                            val_escaped = val_escaped.replace('\n', '<br>').replace('\r', '')
+                        else:
+                            val_escaped = html.escape(str(val)) if val else ""
+                        val_display = f"<strong>{val_escaped}</strong>" if is_active else f"{val_escaped}"
+                        # 修正：使用雙引號包裹 style 屬性，避免與外層單引號衝突
+                        td_style = 'style="max-width: 120px; white-space: normal; word-wrap: break-word; word-break: break-all; color: #d35400;"' if c in ["備註1", "備註2", "備註3"] else ""
                         html_q += f'<td {td_style}>{val_display}</td>'
                     html_q += '</tr>'
                 html_q += '</tbody></table></div>'
@@ -679,7 +714,29 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
         notes_html = ""
         for n in [spec['備註1'], spec['備註2'], spec['備註3']]:
             if pd.notna(n) and str(n).strip() != "" and str(n) != "None": 
-                notes_html += f"<div style='font-size: 1.3rem;'>• {n}</div>"
+                # 清理備註內容：徹底移除 HTML 標籤並轉義特殊字符
+                note_text = str(n)
+                # 第一步：移除所有完整的 HTML 標籤（包括 </div>、<div> 等）
+                # 使用非貪婪匹配，確保移除所有標籤
+                while '<' in note_text and '>' in note_text:
+                    # 持續移除 HTML 標籤，直到沒有為止
+                    old_text = note_text
+                    note_text = re.sub(r'<[^>]+>', '', note_text)
+                    if old_text == note_text:
+                        break  # 如果沒有變化，停止循環
+                # 第二步：強制移除所有殘留的 < 和 > 字符（處理不完整的標籤）
+                note_text = note_text.replace('<', '').replace('>', '')
+                # 第三步：移除 HTML 實體編碼（如 &lt; &gt; 等）
+                note_text = note_text.replace('&lt;', '').replace('&gt;', '')
+                note_text = note_text.replace('&LT;', '').replace('&GT;', '')
+                # 第四步：轉義剩餘的 HTML 特殊字符（如 & 等）
+                note_text = html.escape(note_text)
+                # 第五步：移除多餘的空白字符和換行符
+                note_text = ' '.join(note_text.split())
+                note_text = note_text.strip()
+                # 如果清理後還有內容，才加入 HTML
+                if note_text:
+                    notes_html += f"<div style='font-size: 1.3rem;'>• {note_text}</div>"
         if not notes_html: 
             notes_html = "<div style='opacity:0.5; font-size: 1.3rem;'>(無特殊備註)</div>"
     except: 

@@ -9,10 +9,15 @@ from datetime import datetime
 import io
 import os
 import time
+import re
+import random
+import uuid
+import sqlite3
 
 import config
 import data_manager as dm
-from data_loader import save_data
+from data_loader import save_data, upsert_products, delete_products, reload_products
+from db_schema import get_connection
 from dialogs import show_delete_work_orders_confirm
 
 
@@ -76,6 +81,17 @@ def render_product_management():
                 final_df = edited_df.reset_index(drop=True); saved = 0; skipped = 0
                 if not batch_variety: st.error("❌ 請選擇品種")
                 else:
+                    # 清理備註欄位中的 HTML 標籤（防止從 Excel 複製貼上時帶入 HTML）
+                    def clean_note_field(val):
+                        """清理備註欄位中的 HTML 標籤"""
+                        if pd.isna(val) or str(val).lower() == 'none':
+                            return ""
+                        val_str = str(val)
+                        # 移除 HTML 標籤
+                        val_str = re.sub(r'<[^>]+>', '', val_str)
+                        # 移除多餘的空白字符
+                        return val_str.strip()
+                    
                     existing_signatures = set()
                     def get_signature(client, temp, var, dens, l, w, h, n1, n2, n3): return f"{client}|{temp}|{var}|{dens}|{float(l):.1f}|{float(w):.1f}|{float(h):.1f}|{n1}|{n2}|{n3}"
                     if not st.session_state.products_db.empty:
@@ -85,17 +101,77 @@ def render_product_management():
                     for i, row in final_df.iterrows():
                         if row["準重"] > 0:
                             current_dens = batch_density if not is_special else "N/A"
-                            current_sig = get_signature(batch_client, batch_temp, batch_variety, current_dens, row['長'], row['寬'], row['高'], row['備註1'], row['備註2'], row['備註3'])
+                            # 清理備註欄位
+                            note1 = clean_note_field(row["備註1"])
+                            note2 = clean_note_field(row["備註2"])
+                            note3 = clean_note_field(row["備註3"])
+                            
+                            current_sig = get_signature(batch_client, batch_temp, batch_variety, current_dens, row['長'], row['寬'], row['高'], note1, note2, note3)
                             if current_sig in existing_signatures: skipped += 1
                             else:
                                 existing_signatures.add(current_sig)
-                                new_id = f"{batch_client}-{batch_variety}-{i}-{datetime.now().strftime('%M%S')}"
-                                new_data = pd.DataFrame([[new_id, batch_client, batch_temp, batch_variety, current_dens, row["長"], row["寬"], row["高"], row["下限"], row["準重"], row["上限"], row["備註1"], row["備註2"], row["備註3"]]], columns=st.session_state.products_db.columns)
-                                st.session_state.products_db = pd.concat([st.session_state.products_db, new_data], ignore_index=True)
+                                
+                                # [關鍵修正] 確保產品 ID 絕對唯一
+                                def generate_unique_product_id(client, variety, index):
+                                    """生成唯一的產品 ID，確保不會重複"""
+                                    max_retries = 100  # 最多嘗試 100 次
+                                    
+                                    for attempt in range(max_retries):
+                                        # 使用完整的時間戳（包含微秒）和隨機數
+                                        timestamp = datetime.now()
+                                        # 格式：客戶名-品種-索引-年月日時分秒微秒-隨機數
+                                        unique_suffix = f"{timestamp.strftime('%Y%m%d%H%M%S')}{timestamp.microsecond:06d}{random.randint(1000, 9999)}"
+                                        candidate_id = f"{client}-{variety}-{index}-{unique_suffix}"
+                                        
+                                        # 檢查 session_state 中是否已存在
+                                        if '產品ID' in st.session_state.products_db.columns:
+                                            if candidate_id not in st.session_state.products_db['產品ID'].values:
+                                                # 再檢查資料庫中是否已存在（查詢資料庫）
+                                                try:
+                                                    check_conn = get_connection()
+                                                    check_cursor = check_conn.cursor()
+                                                    check_cursor.execute("SELECT COUNT(*) FROM products WHERE 產品ID = ?", (candidate_id,))
+                                                    exists_in_db = check_cursor.fetchone()[0] > 0
+                                                    check_conn.close()
+                                                    
+                                                    if not exists_in_db:
+                                                        return candidate_id
+                                                except Exception as e:
+                                                    # 如果查詢失敗，為了安全起見，繼續嘗試下一個 ID
+                                                    print(f"檢查產品 ID 時發生錯誤：{e}")
+                                                    continue
+                                        
+                                        # 如果 ID 已存在，等待一小段時間後重試（確保時間戳不同）
+                                        time.sleep(0.001)  # 等待 1 毫秒
+                                    
+                                    # 如果所有嘗試都失敗，使用 UUID 作為後備方案
+                                    fallback_id = f"{client}-{variety}-{index}-{uuid.uuid4().hex[:12]}"
+                                    print(f"⚠️ 使用 UUID 後備方案生成產品 ID：{fallback_id}")
+                                    return fallback_id
+                                
+                                new_id = generate_unique_product_id(batch_client, batch_variety, i)
+                                new_row_df = pd.DataFrame([[new_id, batch_client, batch_temp, batch_variety, current_dens, row["長"], row["寬"], row["高"], row["下限"], row["準重"], row["上限"], note1, note2, note3]], columns=st.session_state.products_db.columns)
+                                # 先累積在記憶體（用於本次匯入計數/避免重複），真正寫入改成增量 upsert（批次）
+                                st.session_state.products_db = pd.concat([st.session_state.products_db, new_row_df], ignore_index=True)
                                 saved += 1
                     if saved > 0:
-                        msg = f"✅ 成功匯入 {saved} 筆" + (f" (⚠️ 另略過 {skipped} 筆重複)" if skipped > 0 else "")
-                        save_data(); st.toast(msg); st.session_state.editor_df_clean = pd.DataFrame({"長": [0.0], "寬": [0.0], "高": [0.0], "下限": [0.0], "準重": [0.0], "上限": [0.0], "備註1": [""], "備註2": [""], "備註3": [""]}); time.sleep(1); st.rerun()
+                        try:
+                            # [關鍵修正] 產品資料改為增量寫入（不再全表刪除）
+                            # 只把本次新增的資料 upsert 到 DB（批次）
+                            new_inserted = st.session_state.products_db.tail(saved).copy()
+                            upsert_products(new_inserted)
+                            
+                            msg = f"✅ 成功匯入 {saved} 筆" + (f" (⚠️ 另略過 {skipped} 筆重複)" if skipped > 0 else "")
+                            st.toast(msg)
+                            st.session_state.editor_df_clean = pd.DataFrame({"長": [0.0], "寬": [0.0], "高": [0.0], "下限": [0.0], "準重": [0.0], "上限": [0.0], "備註1": [""], "備註2": [""], "備註3": [""]})
+                            time.sleep(0.5)  # 稍微等待，確保資料庫寫入完成
+                            # 重新從 DB 載入，確保跨 session 也一致
+                            reload_products()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ 寫入資料庫失敗：{str(e)}")
+                            import traceback
+                            st.error(traceback.format_exc())
                     elif skipped > 0: st.error(f"❌ 寫入失敗：偵測到 {skipped} 筆完全重複的產品資料！")
                     else: st.warning("⚠️ 沒有有效資料可寫入 (準重必須 > 0)")
 
@@ -121,8 +197,14 @@ def render_product_management():
                 selected_rows = edited_db[edited_db["刪除"] == True]
                 if not selected_rows.empty:
                     ids_to_remove = db_disp.loc[selected_rows.index, "產品ID"].tolist()
-                    st.session_state.products_db = st.session_state.products_db[~st.session_state.products_db["產品ID"].isin(ids_to_remove)]
-                    save_data(); st.toast(f"🗑️ 已刪除 {len(ids_to_remove)} 筆資料"); st.rerun()
+                    try:
+                        # [關鍵修正] 精準刪除 DB 記錄（不再全表覆寫）
+                        delete_products(ids_to_remove)
+                        reload_products()
+                        st.toast(f"🗑️ 已刪除 {len(ids_to_remove)} 筆資料")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ 刪除資料失敗：{str(e)}")
     else: st.info("資料庫為空")
 
 
@@ -1463,8 +1545,30 @@ def render_reports():
     
     if not filtered_logs.empty:
         has_data_daily = True
-        filtered_logs['日期'] = filtered_logs['datetime'].dt.strftime("%d"); 
+        # 先確定班別
         filtered_logs['班別'] = filtered_logs.apply(lambda r: r['班別'] if pd.notna(r['班別']) and str(r['班別']).strip()!="" else dm.get_shift_info_backup(r['datetime']), axis=1)
+        
+        # 根據班別和時間判斷日期（考慮晚班跨日，與 LOT 編號邏輯一致）
+        from datetime import timedelta
+        def adjust_date_for_shift(row):
+            """根據班別和時間調整日期，晚班在 00:00-07:59 使用前一天日期"""
+            dt = row['datetime']
+            shift = row['班別']
+            
+            # 如果是晚班且在 00:00-07:59，日期減一天
+            if shift == "晚班":
+                hour = dt.hour
+                minute = dt.minute
+                # 晚班在 00:00-07:59 時段，使用前一天日期（與 LOT 編號邏輯一致）
+                if (hour == 0) or (hour >= 1 and hour < 8) or (hour == 7 and minute < 55):
+                    adjusted_date = dt - timedelta(days=1)
+                    return adjusted_date.strftime("%d")
+            
+            # 其他情況（早班、中班，或晚班在 23:55-23:59）使用原始日期
+            return dt.strftime("%d")
+        
+        filtered_logs['日期'] = filtered_logs.apply(adjust_date_for_shift, axis=1)
+        
         if '組別' not in filtered_logs.columns: filtered_logs['組別'] = 'A'
         # 只處理 PASS 和 NG 記錄，排除 PARTICLE 記錄（PARTICLE 只用於實重準重報表）
         pass_df = filtered_logs[filtered_logs['判定結果'] == 'PASS'].copy(); ng_df = filtered_logs[filtered_logs['判定結果'] == 'NG'].copy()
