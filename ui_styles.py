@@ -49,6 +49,7 @@ def load_styles():
         .info-box:last-child { border-bottom: none; }
         .info-label { font-size: 0.8rem; color: #bdc3c7; font-weight: bold; text-transform: uppercase; }
         .info-value { font-size: 1.6rem; font-weight: 900; color: white; }
+        .info-value-large { font-size: 2.2rem; font-weight: 900; color: white; }
         .info-value-huge { font-size: 3.2rem; font-weight: 900; color: #f1c40f; line-height: 1; }
         .over-prod { color: #ff6b6b !important; }
         /* 上下箭頭按鈕樣式 - 增強視覺效果，讓操作者知道可以點選 */

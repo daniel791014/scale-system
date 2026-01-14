@@ -1267,6 +1267,24 @@ def render_schedule_management():
                     
                     if idx < len(display_df) - 1:
                         st.markdown('<hr style="margin: 0.1rem 0;">', unsafe_allow_html=True)
+                
+                # 計算並顯示總重量（準重 * (預計數量 - 已完成數量)）
+                total_weight = 0
+                for db_idx, row in display_df.iterrows():
+                    standard_weight = row.get('準重', 0)
+                    estimated_qty = row.get('預計數量', 0)
+                    completed_qty = row.get('已完成', 0)
+                    if pd.notna(standard_weight) and pd.notna(estimated_qty):
+                        try:
+                            remaining_qty = float(estimated_qty) - float(completed_qty) if pd.notna(completed_qty) else float(estimated_qty)
+                            if remaining_qty > 0:  # 只計算剩餘待生產的重量
+                                total_weight += float(standard_weight) * remaining_qty
+                        except (ValueError, TypeError):
+                            pass
+                
+                # 顯示總重量
+                st.markdown('<hr style="margin: 0.5rem 0;">', unsafe_allow_html=True)
+                st.markdown(f'<div style="text-align: center; font-weight: bold; font-size: 1.1rem; padding: 0.5rem 0; color: #1976d2;">總重量: {int(total_weight)} kg</div>', unsafe_allow_html=True)
             
             with col_q2:
                 st.write("")  # 空白行

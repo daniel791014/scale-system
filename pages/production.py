@@ -793,7 +793,7 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
             <div class="status-right-panel">
                 <div class="info-box"><div class="info-label">SHIFT / 班別</div><div class="info-value">{s_curr}-{g_curr}</div></div>
                 <div class="info-box"><div class="info-label">REMAIN / 剩餘</div><div class="info-value-huge {over_cls}">{rem_qty}</div></div>
-                <div class="info-box"><div class="info-label">RATIO / 實重準重</div><div class="info-value">{weight_ratio:.1f}%</div></div>
+                <div class="info-box"><div class="info-label">RATIO / 實重準重</div><div class="info-value-large">{weight_ratio:.1f}%</div></div>
             </div>
         </div>
         """)
@@ -822,7 +822,7 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
                 # [時間間隔檢查] 防止連點問題：檢查距離上次記錄的時間間隔
                 last_record_time_key = f"last_record_time_{line_n}"
                 last_record_time = st.session_state.get(last_record_time_key)
-                MIN_RECORD_INTERVAL = 3.0  # 最小記錄間隔：3秒（實際操作中不可能一秒秤一個）
+                MIN_RECORD_INTERVAL = 2.0  # 最小記錄間隔：2秒（實際操作中不可能一秒秤一個）
                 
                 if last_record_time is not None:
                     time_since_last = time.time() - last_record_time
@@ -920,7 +920,7 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
                 # [時間間隔檢查] 防止連點問題：檢查距離上次記錄的時間間隔
                 last_record_time_key = f"last_record_time_{line_n}"
                 last_record_time = st.session_state.get(last_record_time_key)
-                MIN_RECORD_INTERVAL = 3.0  # 最小記錄間隔：3秒（實際操作中不可能一秒秤一個）
+                MIN_RECORD_INTERVAL = 2.0  # 最小記錄間隔：2秒（實際操作中不可能一秒秤一個）
                 
                 if last_record_time is not None:
                     time_since_last = time.time() - last_record_time

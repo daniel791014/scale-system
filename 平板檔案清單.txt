@@ -5,8 +5,7 @@
 ✅ 必須複製的檔案（完整專案資料夾）：
 
 📁 根目錄檔案：
-  ✓ main.py
-  ✓ main_refactored.py
+  ✓ main_refactored.py          ⚠️ 主程式（重構版）
   ✓ config.py                    ⚠️ 每台平板需修改 COM Port
   ✓ data_manager.py
   ✓ data_loader.py
@@ -27,10 +26,8 @@
 ❌ 不需要複製的檔案（會從伺服器讀取）：
 ==========================================
 
-  ✗ db_products.csv
-  ✗ db_orders.csv
-  ✗ db_logs.csv
-  ✗ db_line_status.json
+  ✗ production_db.sqlite         ⚠️ SQL 資料庫檔案（會從伺服器讀取）
+  ✗ db_line_status.json          ⚠️ 產線狀態檔案（會從伺服器讀取）
 
 這些檔案會自動從伺服器共享資料夾讀取：
 \\172.16.3.155\GEMINI TEST2
@@ -40,7 +37,7 @@
 ==========================================
 
 檔案：config.py
-位置：第 37 行
+位置：第 69 行
 修改：SCALE_PORT = "COM5"  →  改為實際的 COM Port
 
 範例：
@@ -55,7 +52,7 @@
 
 pip install streamlit pandas pyserial openpyxl xlsxwriter
 
-注意：sqlite3 通常已包含在 Python 標準庫中，無需額外安裝
+注意：sqlite3 是 Python 標準庫，無需額外安裝
 
 ==========================================
 🔄 本次更新重點（v18.55+）：
@@ -66,11 +63,13 @@ pip install streamlit pandas pyserial openpyxl xlsxwriter
   • 防護機制：防止記錄錯誤數據（如 0.025 kg）
   • 智能刷新：有新數據時快速刷新，無數據時慢速刷新（10秒）
   • 交接班優化：自動選擇第一個未完成的工單，接續生產
+  • SQL 資料庫：已從 CSV 遷移到 SQLite，提供更好的資料一致性
 
 ⚠️ 重要檔案更新：
   • pages/production.py - 穩定判斷、防護機制、刷新邏輯
   • dialogs.py - 開班上工自動選擇工單
-  • main.py - 穩定判斷邏輯同步更新
+  • data_loader.py - SQL 資料庫讀寫邏輯
+  • db_schema.py - SQL 資料庫結構定義
 
 ==========================================
 
