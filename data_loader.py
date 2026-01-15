@@ -21,30 +21,37 @@ PRODUCT_COLUMNS = [
 
 def reload_products():
     """從資料庫重新載入 products 到 session_state（避免用記憶體資料覆蓋 DB）"""
-    init_database()
-    conn = get_connection()
     try:
-        query = f"SELECT {', '.join(PRODUCT_COLUMNS)} FROM products"
-        st.session_state.products_db = pd.read_sql_query(query, conn)
+        init_database()
+        conn = get_connection()
+        try:
+            query = f"SELECT {', '.join(PRODUCT_COLUMNS)} FROM products"
+            st.session_state.products_db = pd.read_sql_query(query, conn)
 
-        # 清理備註欄位中的 HTML 標籤（防止從 Excel 複製貼上時帶入 HTML）
-        import re
+            # 清理備註欄位中的 HTML 標籤（防止從 Excel 複製貼上時帶入 HTML）
+            import re
 
-        def clean_note_field(val):
-            if pd.isna(val) or str(val).lower() == 'none':
-                return ""
-            val_str = str(val)
-            # 先移除所有 HTML 標籤（包括 </div>、<div> 等）
-            val_str = re.sub(r'<[^>]+>', '', val_str)
-            # 移除所有殘留的 < 和 > 字符（處理不完整的標籤）
-            val_str = val_str.replace('<', '').replace('>', '')
-            return val_str.strip()
+            def clean_note_field(val):
+                if pd.isna(val) or str(val).lower() == 'none':
+                    return ""
+                val_str = str(val)
+                # 先移除所有 HTML 標籤（包括 </div>、<div> 等）
+                val_str = re.sub(r'<[^>]+>', '', val_str)
+                # 移除所有殘留的 < 和 > 字符（處理不完整的標籤）
+                val_str = val_str.replace('<', '').replace('>', '')
+                return val_str.strip()
 
-        for note_col in ['備註1', '備註2', '備註3']:
-            if note_col in st.session_state.products_db.columns:
-                st.session_state.products_db[note_col] = st.session_state.products_db[note_col].apply(clean_note_field)
-    finally:
-        conn.close()
+            for note_col in ['備註1', '備註2', '備註3']:
+                if note_col in st.session_state.products_db.columns:
+                    st.session_state.products_db[note_col] = st.session_state.products_db[note_col].apply(clean_note_field)
+        finally:
+            conn.close()
+    except Exception as e:
+        # 如果載入失敗，至少確保有一個空的 DataFrame
+        print(f"⚠️ 重新載入產品資料時發生錯誤：{e}")
+        if 'products_db' not in st.session_state:
+            st.session_state.products_db = pd.DataFrame(columns=PRODUCT_COLUMNS)
+        raise
 
 
 def upsert_products(df_products: pd.DataFrame):
@@ -63,46 +70,53 @@ def upsert_products(df_products: pd.DataFrame):
             df = df.drop(columns=[col])
     df = df[PRODUCT_COLUMNS]
 
-    init_database()
-    conn = get_connection()
-    cursor = conn.cursor()
     try:
-        cursor.execute("PRAGMA busy_timeout = 30000")
+        init_database()
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("PRAGMA busy_timeout = 30000")
 
-        sql = """
-            INSERT INTO products (
-                產品ID, 客戶名, 溫度等級, 品種, 密度, 長, 寬, 高,
-                下限, 準重, 上限, 備註1, 備註2, 備註3
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(產品ID) DO UPDATE SET
-                客戶名=excluded.客戶名,
-                溫度等級=excluded.溫度等級,
-                品種=excluded.品種,
-                密度=excluded.密度,
-                長=excluded.長,
-                寬=excluded.寬,
-                高=excluded.高,
-                下限=excluded.下限,
-                準重=excluded.準重,
-                上限=excluded.上限,
-                備註1=excluded.備註1,
-                備註2=excluded.備註2,
-                備註3=excluded.備註3,
-                updated_at=CURRENT_TIMESTAMP
-        """
+            sql = """
+                INSERT INTO products (
+                    產品ID, 客戶名, 溫度等級, 品種, 密度, 長, 寬, 高,
+                    下限, 準重, 上限, 備註1, 備註2, 備註3
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(產品ID) DO UPDATE SET
+                    客戶名=excluded.客戶名,
+                    溫度等級=excluded.溫度等級,
+                    品種=excluded.品種,
+                    密度=excluded.密度,
+                    長=excluded.長,
+                    寬=excluded.寬,
+                    高=excluded.高,
+                    下限=excluded.下限,
+                    準重=excluded.準重,
+                    上限=excluded.上限,
+                    備註1=excluded.備註1,
+                    備註2=excluded.備註2,
+                    備註3=excluded.備註3,
+                    updated_at=CURRENT_TIMESTAMP
+            """
 
-        rows = [
-            (
-                r["產品ID"], r["客戶名"], r["溫度等級"], r["品種"], r["密度"],
-                r["長"], r["寬"], r["高"], r["下限"], r["準重"], r["上限"],
-                r["備註1"], r["備註2"], r["備註3"]
-            )
-            for _, r in df.iterrows()
-        ]
-        cursor.executemany(sql, rows)
-        conn.commit()
-    finally:
-        conn.close()
+            rows = [
+                (
+                    r["產品ID"], r["客戶名"], r["溫度等級"], r["品種"], r["密度"],
+                    r["長"], r["寬"], r["高"], r["下限"], r["準重"], r["上限"],
+                    r["備註1"], r["備註2"], r["備註3"]
+                )
+                for _, r in df.iterrows()
+            ]
+            cursor.executemany(sql, rows)
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"⚠️ 儲存產品資料時發生錯誤：{e}")
+        # 重新檢查連線狀態
+        import config
+        config.refresh_connection()
+        raise
 
 
 def delete_products(product_ids: list[str]):
@@ -213,8 +227,15 @@ def load_data():
 
 def save_data():
     """儲存所有資料到 SQL 資料庫（優化版：使用增量更新提升效能）"""
-    conn = get_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+    except Exception as e:
+        print(f"⚠️ 建立資料庫連線時發生錯誤：{e}")
+        # 重新檢查連線狀態
+        import config
+        config.refresh_connection()
+        raise
     
     def convert_timestamps_to_string(df):
         """將 DataFrame 中的 Timestamp 類型欄位轉換為字符串"""
@@ -369,13 +390,22 @@ def save_data():
         import traceback
         error_detail = str(e)
         traceback_str = traceback.format_exc()
-        print(f"儲存資料時發生錯誤: {error_detail}")
+        print(f"⚠️ 儲存資料時發生錯誤: {error_detail}")
         print(traceback_str)
-        conn.rollback()
+        try:
+            conn.rollback()
+        except:
+            pass
+        # 重新檢查連線狀態
+        import config
+        config.refresh_connection()
         # 重新拋出異常，讓調用端能夠處理
         raise Exception(f"儲存資料時發生錯誤: {error_detail}")
     finally:
-        conn.close()
+        try:
+            conn.close()
+        except:
+            pass
 
 
 def add_work_orders(new_orders):

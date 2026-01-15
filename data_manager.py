@@ -9,6 +9,18 @@ import config
 import random
 import datetime
 import streamlit as st
+import sys
+
+# 檔案鎖定相關 import（跨平台）
+try:
+    import fcntl  # Unix/Linux
+except ImportError:
+    fcntl = None
+
+try:
+    import msvcrt  # Windows
+except ImportError:
+    msvcrt = None
 
 # ==========================================
 # 1. 核心功能：磅秤讀取 (對應 main.py Line 883)
@@ -168,23 +180,124 @@ def normalize_sequences(df):
 # ==========================================
 # 3. 核心功能：產線狀態存取 (對應 main.py Line 196, 318...)
 # ==========================================
-def load_line_statuses():
-    """讀取 JSON 狀態檔"""
-    if not os.path.exists(config.FILE_LINE_STATUS):
-        return {}
+def _lock_file(file_handle):
+    """鎖定檔案（跨平台）"""
     try:
-        with open(config.FILE_LINE_STATUS, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return {}
+        if sys.platform == 'win32' and msvcrt:
+            # Windows 使用 msvcrt
+            msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, 1)
+        elif fcntl:
+            # Unix/Linux 使用 fcntl
+            fcntl.flock(file_handle, fcntl.LOCK_EX)
+    except Exception:
+        pass  # 如果鎖定失敗，繼續執行（避免阻塞）
 
-def save_line_status(status_data):
-    """寫入 JSON 狀態檔"""
+def _unlock_file(file_handle):
+    """解鎖檔案（跨平台）"""
     try:
-        with open(config.FILE_LINE_STATUS, 'w', encoding='utf-8') as f:
-            json.dump(status_data, f, ensure_ascii=False, indent=4)
-    except Exception as e:
-        print(f"狀態存檔失敗: {e}")
+        if sys.platform == 'win32' and msvcrt:
+            msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+        elif fcntl:
+            fcntl.flock(file_handle, fcntl.LOCK_UN)
+    except Exception:
+        pass
+
+def load_line_statuses(max_retries=3, retry_delay=0.1):
+    """
+    讀取 JSON 狀態檔（帶重試機制和檔案鎖定）
+    
+    參數:
+        max_retries: 最大重試次數（預設 3 次）
+        retry_delay: 重試間隔（秒，預設 0.1 秒）
+    """
+    file_path = config.FILE_LINE_STATUS
+    
+    # 如果檔案不存在，返回空字典
+    if not os.path.exists(file_path):
+        return {}
+    
+    for attempt in range(max_retries):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                _lock_file(f)
+                try:
+                    data = json.load(f)
+                    return data if isinstance(data, dict) else {}
+                finally:
+                    _unlock_file(f)
+        except (json.JSONDecodeError, IOError, OSError) as e:
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                continue
+            else:
+                print(f"⚠️ 讀取狀態檔失敗（已重試 {max_retries} 次）：{e}")
+                return {}
+        except Exception as e:
+            print(f"⚠️ 讀取狀態檔時發生未預期錯誤：{e}")
+            return {}
+    
+    return {}
+
+def save_line_status(status_data, max_retries=3, retry_delay=0.1):
+    """
+    寫入 JSON 狀態檔（帶重試機制和檔案鎖定）
+    
+    參數:
+        status_data: 要儲存的狀態資料
+        max_retries: 最大重試次數（預設 3 次）
+        retry_delay: 重試間隔（秒，預設 0.1 秒）
+    """
+    file_path = config.FILE_LINE_STATUS
+    
+    # 確保目錄存在
+    try:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    except Exception:
+        pass
+    
+    for attempt in range(max_retries):
+        try:
+            # 使用臨時檔案，然後原子性移動（避免寫入過程中檔案損壞）
+            temp_path = file_path + '.tmp'
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                _lock_file(f)
+                try:
+                    json.dump(status_data, f, ensure_ascii=False, indent=4)
+                    f.flush()
+                    os.fsync(f.fileno())  # 強制寫入磁碟
+                finally:
+                    _unlock_file(f)
+            
+            # 原子性移動（Windows 上需要先刪除目標檔案）
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+            os.rename(temp_path, file_path)
+            return  # 成功
+            
+        except (IOError, OSError) as e:
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                # 清理臨時檔案
+                try:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                except Exception:
+                    pass
+                continue
+            else:
+                print(f"⚠️ 狀態存檔失敗（已重試 {max_retries} 次）：{e}")
+        except Exception as e:
+            print(f"⚠️ 狀態存檔時發生未預期錯誤：{e}")
+            # 清理臨時檔案
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception:
+                pass
+            return
 
 def save_current_work_order(line_name, work_order_label):
     """保存當前選擇的工單（用於當機恢復）"""
@@ -272,57 +385,3 @@ def get_shift_info_backup(dt_obj):
             return "晚班"
     except:
         return ""
-
-def generate_lot_number(line_name, shift, group, dt=None):
-    """
-    生成 LOT 號碼
-    格式：{產線}{年份末位}{月份}{日期}{班別}{組別}T
-    例如：36011511T
-    - 3 代表 LINE.3
-    - 6 代表西曆 2026 的 6
-    - 01 代表 1 月
-    - 15 代表日期
-    - 1 代表早班（2 為中班、3 為晚班）
-    - 最後的 1 代表 A 組（2=B 組、3=C 組、4=D 組）
-    - T 代表台灣
-    考慮晚班跨日：晚班在 00:00-07:59 時段使用前一天日期
-    """
-    if dt is None:
-        dt = datetime.datetime.now()
-    
-    # 根據班別和時間判斷日期（考慮晚班跨日）
-    if shift == "晚班":
-        hour = dt.hour
-        minute = dt.minute
-        # 晚班在 00:00-07:59 時段，使用前一天日期
-        if (hour == 0) or (hour >= 1 and hour < 8) or (hour == 7 and minute < 55):
-            adjusted_date = dt - datetime.timedelta(days=1)
-            date_obj = adjusted_date
-        else:
-            date_obj = dt
-    else:
-        date_obj = dt
-    
-    # 產線編號（從 Line 1, Line 2 等提取數字）
-    line_num = "".join(filter(str.isdigit, line_name)) or "0"
-    
-    # 年份末位數字（例如：2026 -> 6）
-    year_last_digit = str(date_obj.year)[-1]
-    
-    # 月份（兩位數，例如：01, 02, ..., 12）
-    month_str = date_obj.strftime("%m")
-    
-    # 日期（兩位數，例如：01, 02, ..., 31）
-    day_str = date_obj.strftime("%d")
-    
-    # 班別代碼：早班=1, 中班=2, 晚班=3
-    shift_code = {"早班": "1", "中班": "2", "晚班": "3"}.get(shift, "0")
-    
-    # 組別代碼：A=1, B=2, C=3, D=4
-    group_code_map = {"A": "1", "B": "2", "C": "3", "D": "4"}
-    group_code = group_code_map.get(str(group).upper(), "0")
-    
-    # 組合 LOT 號碼：{產線}{年份末位}{月份}{日期}{班別}{組別}T
-    lot_number = f"{line_num}{year_last_digit}{month_str}{day_str}{shift_code}{group_code}T"
-    
-    return lot_number
