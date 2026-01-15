@@ -24,11 +24,6 @@ SHARED_FOLDER = "GEMINI TEST2"
 # 組合出 Windows 網路路徑 (例如: \\172.16.3.155\GEMINI TEST2)
 SERVER_PATH = f"\\\\{SERVER_IP}\\{SHARED_FOLDER}"
 
-# 網路連線帳號密碼（用於自動重新連線）
-# 注意：這些資訊應該與 啟動系統.bat 中的設定一致
-NETWORK_USERNAME = "test"
-NETWORK_PASSWORD = "0508"
-
 # --- 連線狀態快取（避免頻繁檢查）---
 _connection_cache = {
     'last_check': 0,
@@ -139,31 +134,10 @@ def get_base_dir(force_check=False):
         _connection_cache['last_base_dir'] = BASE_DIR
         return BASE_DIR
     else:
-        # 如果連線中斷，嘗試重新建立連線（但不要太頻繁）
-        # 只有在從伺服器模式切換到單機模式時才嘗試重新連線
-        if BASE_DIR == SERVER_PATH:
-            print(f"⚠️ [連線中斷] 偵測到伺服器連線中斷，嘗試重新連線...")
-            # 使用 refresh_connection() 嘗試重新建立連線
-            # 但只在快取過期時才執行（避免頻繁嘗試）
-            if force_check or (current_time - _connection_cache.get('last_reconnect_attempt', 0) > 30):
-                # 記錄重新連線嘗試時間
-                _connection_cache['last_reconnect_attempt'] = current_time
-                try:
-                    refresh_connection()
-                    # 重新檢查連線狀態
-                    if check_server_path(SERVER_PATH, timeout=2):
-                        BASE_DIR = SERVER_PATH
-                        IS_STANDALONE_MODE = False
-                        _connection_cache['last_status'] = True
-                        _connection_cache['last_base_dir'] = BASE_DIR
-                        return BASE_DIR
-                except Exception as e:
-                    print(f"⚠️ 自動重新連線失敗：{e}")
-        
-        # 如果重新連線失敗或不需要重新連線，切換到單機模式
+        # 如果連線中斷，使用本機路徑
         local_dir = os.path.dirname(os.path.abspath(__file__))
         if BASE_DIR == SERVER_PATH:
-            print(f"⚠️ [連線中斷] 切換到本機模式：{local_dir}")
+            print(f"⚠️ [連線中斷] 偵測到伺服器連線中斷，切換到本機模式：{local_dir}")
         BASE_DIR = local_dir
         IS_STANDALONE_MODE = True
         _connection_cache['last_base_dir'] = BASE_DIR
@@ -175,96 +149,12 @@ def is_server_connected():
     return get_base_dir() == SERVER_PATH
 
 def refresh_connection():
-    """
-    強制重新檢查連線狀態並更新 BASE_DIR（清除快取）
-    如果連線失敗，會嘗試重新建立 IPC$ 連線
-    """
+    """強制重新檢查連線狀態並更新 BASE_DIR（清除快取）"""
     global BASE_DIR, IS_STANDALONE_MODE, _connection_cache
-    
     # 清除快取，強制重新檢查
     _connection_cache['last_check'] = 0
-    
-    # 先檢查共享資料夾是否存在
-    if check_server_path(SERVER_PATH, timeout=2):
-        # 如果共享資料夾存在，直接更新 BASE_DIR
-        BASE_DIR = SERVER_PATH
-        IS_STANDALONE_MODE = False
-        _connection_cache['last_status'] = True
-        _connection_cache['last_base_dir'] = BASE_DIR
-        return BASE_DIR
-    
-    # 如果共享資料夾不存在，嘗試重新建立 IPC$ 連線
-    print(f"⚠️ 共享資料夾不存在，嘗試重新建立連線...")
-    
-    try:
-        import subprocess
-        
-        # 1. 測試網路連通性
-        result = subprocess.run(
-            f'ping -n 2 {SERVER_IP}',
-            shell=True,
-            capture_output=True,
-            timeout=5
-        )
-        
-        if result.returncode != 0:
-            # 網路不通，切換到單機模式
-            local_dir = os.path.dirname(os.path.abspath(__file__))
-            BASE_DIR = local_dir
-            IS_STANDALONE_MODE = True
-            _connection_cache['last_status'] = False
-            _connection_cache['last_base_dir'] = BASE_DIR
-            return BASE_DIR
-        
-        # 2. 刪除舊的 IPC$ 連線
-        subprocess.run(
-            f'net use \\\\{SERVER_IP}\\IPC$ /delete /y',
-            shell=True,
-            capture_output=True,
-            timeout=3
-        )
-        time.sleep(1)
-        
-        # 3. 建立新的 IPC$ 連線
-        result = subprocess.run(
-            f'net use \\\\{SERVER_IP}\\IPC$ /user:{NETWORK_USERNAME} {NETWORK_PASSWORD} /persistent:yes',
-            shell=True,
-            capture_output=True,
-            timeout=5
-        )
-        
-        if result.returncode == 0:
-            print(f"✅ IPC$ 連線建立成功")
-            time.sleep(2)  # 等待連線穩定
-            
-            # 4. 再次檢查共享資料夾
-            if check_server_path(SERVER_PATH, timeout=2):
-                print(f"🔄 [重新連線] 共享資料夾已恢復：{SERVER_PATH}")
-                BASE_DIR = SERVER_PATH
-                IS_STANDALONE_MODE = False
-                _connection_cache['last_status'] = True
-                _connection_cache['last_base_dir'] = BASE_DIR
-                return BASE_DIR
-            else:
-                print(f"⚠️ IPC$ 連線已建立，但共享資料夾仍無法存取：{SERVER_PATH}")
-        
-        # 如果還是無法存取共享資料夾，切換到單機模式
-        local_dir = os.path.dirname(os.path.abspath(__file__))
-        BASE_DIR = local_dir
-        IS_STANDALONE_MODE = True
-        _connection_cache['last_status'] = False
-        _connection_cache['last_base_dir'] = BASE_DIR
-        return BASE_DIR
-        
-    except Exception as e:
-        print(f"⚠️ 重新建立連線時發生錯誤：{e}")
-        # 發生錯誤時，切換到單機模式
-        local_dir = os.path.dirname(os.path.abspath(__file__))
-        BASE_DIR = local_dir
-        IS_STANDALONE_MODE = True
-        _connection_cache['last_status'] = False
-        _connection_cache['last_base_dir'] = BASE_DIR
-        return BASE_DIR
+    BASE_DIR = get_base_dir(force_check=True)
+    return BASE_DIR
 
 # ==========================================
 # 2. 資料庫設定

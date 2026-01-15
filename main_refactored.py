@@ -5,165 +5,6 @@
 
 import streamlit as st
 from datetime import datetime
-import subprocess
-import time
-import importlib
-import os
-import platform
-import sys
-
-# ==========================================
-# 啟動時完整測試伺服器連線（與測試伺服器連線.bat 相同）
-# ==========================================
-def test_server_connection():
-    """
-    完整測試伺服器連線（與測試伺服器連線.bat 相同的步驟）
-    返回：(success, error_message)
-    """
-    SERVER_IP = "172.16.3.155"
-    SHARED_FOLDER = "GEMINI TEST2"
-    USERNAME = "test"
-    PASSWORD = "0508"
-    SERVER_PATH = f"\\\\{SERVER_IP}\\{SHARED_FOLDER}"
-    
-    error_messages = []
-    
-    # [1/5] 測試網路連通性
-    print("[1/5] 測試網路連通性...")
-    try:
-        if platform.system() == "Windows":
-            result = subprocess.run(
-                f'ping -n 2 {SERVER_IP}',
-                shell=True,
-                capture_output=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                print(f"✅ 伺服器 IP 可連通：{SERVER_IP}")
-            else:
-                error_messages.append(f"❌ 無法連通伺服器 IP：{SERVER_IP}")
-                error_messages.append("   請檢查：")
-                error_messages.append("   - 平板和伺服器是否在同一網路")
-                error_messages.append("   - 防火牆是否阻擋連線")
-                error_messages.append("   - IP 位址是否正確")
-                return (False, "\n".join(error_messages))
-        else:
-            # Linux/Mac 使用 ping -c
-            result = subprocess.run(
-                f'ping -c 2 {SERVER_IP}',
-                shell=True,
-                capture_output=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                print(f"✅ 伺服器 IP 可連通：{SERVER_IP}")
-            else:
-                error_messages.append(f"❌ 無法連通伺服器 IP：{SERVER_IP}")
-                return (False, "\n".join(error_messages))
-    except Exception as e:
-        error_messages.append(f"❌ 測試網路連通性時發生錯誤：{e}")
-        return (False, "\n".join(error_messages))
-    
-    # [2/5] 刪除舊的網路連線
-    print("[2/5] 刪除舊的網路連線...")
-    try:
-        subprocess.run(
-            f'net use \\\\{SERVER_IP}\\IPC$ /delete /y',
-            shell=True,
-            capture_output=True,
-            timeout=3
-        )
-        print("✅ 已清除舊連線")
-        time.sleep(1)
-    except Exception as e:
-        print(f"⚠️ 清除舊連線時發生錯誤（可忽略）：{e}")
-    
-    # [3/5] 建立新的網路連線
-    print("[3/5] 建立新的網路連線...")
-    try:
-        result = subprocess.run(
-            f'net use \\\\{SERVER_IP}\\IPC$ /user:{USERNAME} {PASSWORD} /persistent:yes',
-            shell=True,
-            capture_output=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            print("✅ 網路連線建立成功")
-        else:
-            error_messages.append("❌ 網路連線建立失敗")
-            error_messages.append("   請檢查：")
-            error_messages.append(f"   - 帳號密碼是否正確（目前：{USERNAME} / {PASSWORD}）")
-            error_messages.append("   - 伺服器是否允許此帳號連線")
-            error_messages.append("   - 伺服器的網路共用是否已啟用")
-            return (False, "\n".join(error_messages))
-        time.sleep(2)
-    except Exception as e:
-        error_messages.append(f"❌ 建立網路連線時發生錯誤：{e}")
-        return (False, "\n".join(error_messages))
-    
-    # [4/5] 測試共享資料夾存取
-    print("[4/5] 測試共享資料夾存取...")
-    try:
-        if os.path.exists(SERVER_PATH):
-            try:
-                # 嘗試列出目錄內容以確認真的可以存取
-                _ = os.listdir(SERVER_PATH)
-                print(f"✅ 共享資料夾可存取：{SERVER_PATH}")
-            except (OSError, PermissionError) as e:
-                error_messages.append(f"❌ 無法存取共享資料夾：{SERVER_PATH}")
-                error_messages.append("   請檢查：")
-                error_messages.append(f"   - 共享資料夾名稱是否正確（目前：{SHARED_FOLDER}）")
-                error_messages.append("   - 共享資料夾是否已正確設定權限")
-                error_messages.append("   - 帳號是否有存取權限")
-                return (False, "\n".join(error_messages))
-        else:
-            error_messages.append(f"❌ 共享資料夾路徑不存在：{SERVER_PATH}")
-            error_messages.append("   請檢查：")
-            error_messages.append(f"   - 共享資料夾名稱是否正確（目前：{SHARED_FOLDER}）")
-            return (False, "\n".join(error_messages))
-    except Exception as e:
-        error_messages.append(f"❌ 測試共享資料夾存取時發生錯誤：{e}")
-        return (False, "\n".join(error_messages))
-    
-    # [5/5] 列出共享資料夾內容（驗證）
-    print("[5/5] 驗證共享資料夾內容...")
-    try:
-        files = os.listdir(SERVER_PATH)
-        print(f"✅ 共享資料夾內容驗證成功（找到 {len(files)} 個項目）")
-        return (True, None)
-    except Exception as e:
-        error_messages.append(f"❌ 驗證共享資料夾內容時發生錯誤：{e}")
-        return (False, "\n".join(error_messages))
-
-# 在導入 config 之前先完整測試連線
-print("=" * 50)
-print("正在自動建立連線 (IPC$)...")
-print("=" * 50)
-print()
-
-connection_success, error_msg = test_server_connection()
-
-if not connection_success:
-    print("=" * 50)
-    print("連線測試失敗")
-    print("=" * 50)
-    print()
-    print(error_msg)
-    print()
-    print("如果以上測試都通過，但系統仍無法連線，請檢查：")
-    print("1. config.py 中的 SERVER_IP 和 SHARED_FOLDER 設定")
-    print("2. 啟動系統.bat 中的帳號密碼設定")
-    print("3. Python 程式是否有權限存取網路路徑")
-    print()
-    # 不導入 config，直接顯示錯誤並退出
-    sys.exit(1)
-
-print("=" * 50)
-print("連線完成！所有測試通過。")
-print("=" * 50)
-print()
-
-# 現在才導入 config（此時連線應該已經建立）
 import config
 import data_manager as dm
 from data_loader import load_data, save_data
@@ -188,74 +29,101 @@ if 'toast_msg' in st.session_state and st.session_state.toast_msg:
         st.toast(msg)
     st.session_state.toast_msg = None
 
-# ==========================================
-# 強制檢查連線狀態（不允許單機模式）
-# ==========================================
-# 重新檢查連線狀態（因為連線已經建立）
-config.refresh_connection()
-
-# 如果還是單機模式，持續嘗試連線，不允許操作
+# 檢查是否為單機模式，如果是則顯示警告或阻止啟動
 if config.IS_STANDALONE_MODE:
-    # 初始化重試計數器
-    if 'retry_count' not in st.session_state:
-        st.session_state.retry_count = 0
-    
-    # 再次嘗試完整測試連線
-    st.session_state.retry_count += 1
-    
-    connection_success, error_msg = test_server_connection()
-    
-    if connection_success:
-        # 重新載入 config 模組以更新 BASE_DIR 和 IS_STANDALONE_MODE
-        importlib.reload(config)
-        # 重新載入 db_schema 模組以更新資料庫路徑
-        import db_schema
-        importlib.reload(db_schema)
-        # 清除 session_state 中的資料，強制重新載入
-        if 'products_db' in st.session_state:
-            del st.session_state.products_db
-        if 'work_orders_db' in st.session_state:
-            del st.session_state.work_orders_db
-        if 'production_logs' in st.session_state:
-            del st.session_state.production_logs
-        # 如果連線成功，重新載入頁面
+    if config.BLOCK_STANDALONE_MODE:
+        # 持續嘗試重新連線，而不是直接停止
+        import subprocess
+        import importlib
+        
+        # 初始化重試計數器
+        if 'retry_count' not in st.session_state:
+            st.session_state.retry_count = 0
+        
+        # 嘗試建立網路連線
+        st.session_state.retry_count += 1
+        
+        try:
+            # 先刪除舊連線
+            subprocess.run(
+                f'net use \\\\{config.SERVER_IP}\\IPC$ /delete /y',
+                shell=True,
+                capture_output=True,
+                timeout=3
+            )
+            
+            # 建立新連線
+            result = subprocess.run(
+                f'net use \\\\{config.SERVER_IP}\\IPC$ /user:test 0508 /persistent:yes',
+                shell=True,
+                capture_output=True,
+                timeout=5
+            )
+            
+            # 重新檢查伺服器連線
+            import time
+            time.sleep(2)
+            
+            # 重新檢查連線狀態
+            if config.check_server_path(config.SERVER_PATH):
+                # 重新載入 config 模組以更新 BASE_DIR 和 IS_STANDALONE_MODE
+                importlib.reload(config)
+                # 重新載入 db_schema 模組以更新資料庫路徑
+                import db_schema
+                importlib.reload(db_schema)
+                # 清除 session_state 中的資料，強制重新載入
+                if 'products_db' in st.session_state:
+                    del st.session_state.products_db
+                if 'work_orders_db' in st.session_state:
+                    del st.session_state.work_orders_db
+                if 'production_logs' in st.session_state:
+                    del st.session_state.production_logs
+                # 如果連線成功，重新載入頁面
+                st.rerun()
+                
+        except Exception as e:
+            pass
+        
+        # 顯示等待畫面
+        st.error("""
+        ⚠️ **無法連接到伺服器，系統正在嘗試重新連線...**
+        
+        **問題說明：**
+        - 無法連接到伺服器 `{SERVER_PATH}`
+        - 系統正在自動嘗試重新建立連線
+        
+        **已嘗試次數：** {RETRY_COUNT} 次
+        
+        **請檢查：**
+        1. 網路連線是否正常
+        2. 確認伺服器 `{SERVER_IP}` 是否正常運作
+        3. 執行 `測試伺服器連線.bat` 進行診斷
+        4. 檢查 `啟動系統.bat` 中的帳號密碼是否正確
+        
+        **系統將每 5 秒自動重試連線，請稍候...**
+        """.format(SERVER_PATH=config.SERVER_PATH, SERVER_IP=config.SERVER_IP, RETRY_COUNT=st.session_state.retry_count))
+        
+        # 使用自動重新執行來持續檢查（每 5 秒）
+        import time
+        time.sleep(5)
         st.rerun()
-    
-    # 顯示等待畫面（不允許操作）
-    st.error(f"""
-    ⚠️ **無法連接到伺服器，系統正在嘗試重新連線...**
-    
-    **重要：系統必須連接到伺服器才能使用，不允許單機模式操作！**
-    
-    **問題說明：**
-    - 無法連接到伺服器 `{config.SERVER_PATH}`
-    - 系統正在自動嘗試重新建立連線
-    
-    **已嘗試次數：** {st.session_state.retry_count} 次
-    
-    **錯誤詳情：**
-    ```
-    {error_msg if error_msg else "連線測試失敗"}
-    ```
-    
-    **請檢查：**
-    1. 網路連線是否正常
-    2. 確認伺服器 `{config.SERVER_IP}` 是否正常運作
-    3. 執行 `測試伺服器連線.bat` 進行診斷
-    4. 檢查 `啟動系統.bat` 中的帳號密碼是否正確
-    5. 確認 Windows 網路共用服務是否正常
-    
-    **系統將每 5 秒自動重試連線，請稍候...**
-    
-    **注意：** 在連線成功之前，系統無法使用。請聯繫 IT 人員協助排除連線問題。
-    """)
-    
-    # 使用自動重新執行來持續檢查（每 5 秒）
-    time.sleep(5)
-    st.rerun()
-    
-    # 停止執行，不允許進入後續程式碼
-    st.stop()
+    else:
+        # 顯示警告但允許繼續使用
+        st.warning("""
+        ⚠️ **警告：系統目前處於單機模式**
+        
+        **問題說明：**
+        - 無法連接到伺服器 `{SERVER_PATH}`
+        - 系統將使用本機資料庫，資料可能無法與其他工作站同步
+        
+        **請立即處理：**
+        1. 檢查網路連線是否正常
+        2. 確認伺服器 `{SERVER_IP}` 是否正常運作
+        3. 執行 `測試伺服器連線.bat` 進行診斷
+        4. 聯繫 IT 人員協助排除連線問題
+        
+        **注意：** 在單機模式下，您的資料可能無法與其他產線同步，請謹慎使用！
+        """.format(SERVER_PATH=config.SERVER_PATH, SERVER_IP=config.SERVER_IP))
 
 # ==========================================
 # 主選單 & 頁面邏輯
