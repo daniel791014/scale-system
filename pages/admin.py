@@ -70,7 +70,7 @@ def render_product_management():
             if st.button("🔄 計算重量", type="primary", width='stretch'):
                 calc_df = edited_df.reset_index(drop=True)
                 for index, row in calc_df.iterrows():
-                    if is_special: w = float(fixed_weight_opt); calc_df.at[index, "準重"], calc_df.at[index, "下限"], calc_df.at[index, "上限"] = w, w, w + 0.2
+                    if is_special: w = float(fixed_weight_opt); calc_df.at[index, "準重"], calc_df.at[index, "下限"], calc_df.at[index, "上限"] = w, w, w + 0.5
                     else:
                         if row["長"] > 0 and row["寬"] > 0 and row["高"] > 0:
                             vol = (row["長"]/1000) * (row["寬"]/1000) * (row["高"]/1000)
