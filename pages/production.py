@@ -619,10 +619,13 @@ def render_record_history(line_n, s_curr, g_curr, wo_std_map, undo_dialog_key):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                 pass_df = pass_df.sort_values(by="時間", ascending=False)
                 pass_df["時間"] = pass_df["時間"].astype(str).apply(lambda x: x.split(" ")[-1] if " " in x else x)
                 pass_df["序號"] = range(len(pass_df), 0, -1)
 =======
+=======
+>>>>>>> parent of 74ddb67 (秤重速度改善)
 =======
 >>>>>>> parent of 74ddb67 (秤重速度改善)
 =======
@@ -642,6 +645,9 @@ def render_record_history(line_n, s_curr, g_curr, wo_std_map, undo_dialog_key):
                 pass_df["實測重"] = pd.to_numeric(pass_df["實測重"], errors='coerce').apply(lambda x: f"{x:.1f}" if pd.notna(x) else "0.0")
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of 74ddb67 (秤重速度改善)
+=======
 >>>>>>> parent of 74ddb67 (秤重速度改善)
 =======
 >>>>>>> parent of 74ddb67 (秤重速度改善)
@@ -666,10 +672,13 @@ def render_record_history(line_n, s_curr, g_curr, wo_std_map, undo_dialog_key):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                 ng_df = ng_df.sort_values(by="時間", ascending=False)
                 ng_df["時間"] = ng_df["時間"].astype(str).apply(lambda x: x.split(" ")[-1] if " " in x else x)
                 ng_df["序號"] = range(len(ng_df), 0, -1)
 =======
+=======
+>>>>>>> parent of 74ddb67 (秤重速度改善)
 =======
 >>>>>>> parent of 74ddb67 (秤重速度改善)
 =======
@@ -687,6 +696,9 @@ def render_record_history(line_n, s_curr, g_curr, wo_std_map, undo_dialog_key):
                 ng_df = ng_df.iloc[::-1]
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of 74ddb67 (秤重速度改善)
+=======
 >>>>>>> parent of 74ddb67 (秤重速度改善)
 =======
 >>>>>>> parent of 74ddb67 (秤重速度改善)
@@ -1091,7 +1103,11 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             st.button("紀錄不良品\n(NG)", disabled=btn_ng_disabled, type="primary", use_container_width=True, on_click=do_ng, key=f"btn_ng_{line_n}")
+=======
+            st.button("紀錄不良品\n(NG)", disabled=btn_ng_disabled, type="primary", width='stretch', on_click=do_ng, key=f"btn_ng_{line_n}")
+>>>>>>> parent of 74ddb67 (秤重速度改善)
 =======
             st.button("紀錄不良品\n(NG)", disabled=btn_ng_disabled, type="primary", width='stretch', on_click=do_ng, key=f"btn_ng_{line_n}")
 >>>>>>> parent of 74ddb67 (秤重速度改善)
