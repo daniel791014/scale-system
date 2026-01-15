@@ -272,3 +272,57 @@ def get_shift_info_backup(dt_obj):
             return "晚班"
     except:
         return ""
+
+def generate_lot_number(line_name, shift, group, dt=None):
+    """
+    生成 LOT 號碼
+    格式：{產線}{年份末位}{月份}{日期}{班別}{組別}T
+    例如：36011511T
+    - 3 代表 LINE.3
+    - 6 代表西曆 2026 的 6
+    - 01 代表 1 月
+    - 15 代表日期
+    - 1 代表早班（2 為中班、3 為晚班）
+    - 最後的 1 代表 A 組（2=B 組、3=C 組、4=D 組）
+    - T 代表台灣
+    考慮晚班跨日：晚班在 00:00-07:59 時段使用前一天日期
+    """
+    if dt is None:
+        dt = datetime.datetime.now()
+    
+    # 根據班別和時間判斷日期（考慮晚班跨日）
+    if shift == "晚班":
+        hour = dt.hour
+        minute = dt.minute
+        # 晚班在 00:00-07:59 時段，使用前一天日期
+        if (hour == 0) or (hour >= 1 and hour < 8) or (hour == 7 and minute < 55):
+            adjusted_date = dt - datetime.timedelta(days=1)
+            date_obj = adjusted_date
+        else:
+            date_obj = dt
+    else:
+        date_obj = dt
+    
+    # 產線編號（從 Line 1, Line 2 等提取數字）
+    line_num = "".join(filter(str.isdigit, line_name)) or "0"
+    
+    # 年份末位數字（例如：2026 -> 6）
+    year_last_digit = str(date_obj.year)[-1]
+    
+    # 月份（兩位數，例如：01, 02, ..., 12）
+    month_str = date_obj.strftime("%m")
+    
+    # 日期（兩位數，例如：01, 02, ..., 31）
+    day_str = date_obj.strftime("%d")
+    
+    # 班別代碼：早班=1, 中班=2, 晚班=3
+    shift_code = {"早班": "1", "中班": "2", "晚班": "3"}.get(shift, "0")
+    
+    # 組別代碼：A=1, B=2, C=3, D=4
+    group_code_map = {"A": "1", "B": "2", "C": "3", "D": "4"}
+    group_code = group_code_map.get(str(group).upper(), "0")
+    
+    # 組合 LOT 號碼：{產線}{年份末位}{月份}{日期}{班別}{組別}T
+    lot_number = f"{line_num}{year_last_digit}{month_str}{day_str}{shift_code}{group_code}T"
+    
+    return lot_number
