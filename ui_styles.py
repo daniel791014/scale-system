@@ -449,7 +449,7 @@ def load_styles():
                     btn.style.setProperty('border-color', '#95a5a6', 'important');
                     btn.style.setProperty('color', '#7f8c8d', 'important');
                 }
-            } else if (txt.includes("NG") && txt.includes("紀錄")) {
+            } else if (testId.includes('btn_ng_') || parentTestId.includes('btn_ng_') || (txt.includes("NG") && txt.includes("紀錄"))) {
                 btn.style.setProperty('height', '120px', 'important'); 
                 btn.style.setProperty('min-height', '120px', 'important'); 
                 btn.style.setProperty('font-size', '28px', 'important'); 
@@ -458,6 +458,12 @@ def load_styles():
                 btn.style.setProperty('border-color', '#95a5a6', 'important');
                 btn.style.setProperty('color', '#2c3e50', 'important'); 
                 btn.style.setProperty('border-radius', '12px', 'important');
+                btn.style.setProperty('white-space', 'pre-wrap', 'important');
+                // 確保按鈕內部的文字元素也能換行
+                var textElements = btn.querySelectorAll('p, span, div');
+                for (var j = 0; j < textElements.length; j++) {
+                    textElements[j].style.setProperty('white-space', 'pre-wrap', 'important');
+                }
             } else if (txt.includes("開班上工")) {
                 btn.style.setProperty('font-size', '24px', 'important'); 
                 btn.style.setProperty('font-weight', 'bold', 'important'); 

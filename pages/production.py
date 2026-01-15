@@ -471,7 +471,7 @@ def render_record_history(line_n, s_curr, g_curr, wo_std_map, undo_dialog_key):
         if not session_logs.empty: 
             pass_df = session_logs[session_logs["判定結果"]=="PASS"].copy()
             if not pass_df.empty:
-                pass_df = pass_df.sort_index(ascending=False)
+                pass_df = pass_df.sort_values(by="時間", ascending=False)
                 pass_df["時間"] = pass_df["時間"].astype(str).apply(lambda x: x.split(" ")[-1] if " " in x else x)
                 pass_df["序號"] = range(len(pass_df), 0, -1)
                 html_table = '<div class="table-scroll-container"><table class="styled-table"><thead><tr><th style="width:20%">序號</th><th style="width:40%">時間</th><th style="width:40%">實測重</th></tr></thead><tbody>'
@@ -490,7 +490,7 @@ def render_record_history(line_n, s_curr, g_curr, wo_std_map, undo_dialog_key):
         if not session_logs.empty: 
             ng_df = session_logs[session_logs["判定結果"]=="NG"].copy()
             if not ng_df.empty:
-                ng_df = ng_df.sort_index(ascending=False)
+                ng_df = ng_df.sort_values(by="時間", ascending=False)
                 ng_df["時間"] = ng_df["時間"].astype(str).apply(lambda x: x.split(" ")[-1] if " " in x else x)
                 ng_df["序號"] = range(len(ng_df), 0, -1)
                 html_table = '<div class="table-scroll-container"><table class="styled-table"><thead><tr><th style="width:20%">序號</th><th style="width:40%">時間</th><th style="width:40%">NG原因</th></tr></thead><tbody>'
@@ -781,7 +781,7 @@ def render_scale_control_panel(curr_item, line_n, s_curr, g_curr, wo_std_map,
             
             # [關鍵修正] NG 只有在 10.0~10.5 之間才能按
             btn_ng_disabled = not (is_ng_weight and buttons_enabled)
-            st.button("紀錄不良品 (NG)", disabled=btn_ng_disabled, type="primary", use_container_width=True, on_click=do_ng, key=f"btn_ng_{line_n}")
+            st.button("紀錄不良品\n(NG)", disabled=btn_ng_disabled, type="primary", use_container_width=True, on_click=do_ng, key=f"btn_ng_{line_n}")
         
         # [關鍵修正] 下拉選單只在 NG 範圍內出現
         if is_ng_weight and not is_manually_locked: 
